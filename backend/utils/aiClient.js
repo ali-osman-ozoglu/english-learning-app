@@ -44,7 +44,7 @@ class AIRotator {
                 console.log(`[AI] Anahtar deneniyor (Index: ${this.currentIndex}, Key: ${key.substring(0, 8)}...)`);
                 const genAI = new GoogleGenAI({ apiKey: key }); // Varsayılana bırak
                 const response = await genAI.models.generateContent({
-                    model: "gemini-2.0-flash-lite",
+                    model: "gemini-2.0-flash",
                     contents: [{ role: 'user', parts: [{ text: prompt }] }],
                     generationConfig: {
                         responseMimeType: mimeType,

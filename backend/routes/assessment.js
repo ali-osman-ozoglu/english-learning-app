@@ -63,7 +63,13 @@ router.post('/evaluate', async (req, res) => {
             return res.json({ 
                 success: true, 
                 isFallback: true,
-                evaluation: { explanation: "AI yoğunluğu nedeniyle başlangıç seviyesinden başlatıldınız. İlerledikçe seviyeniz güncellenecektir." },
+                evaluation: { 
+                    vocabulary: 'A1',
+                    reading: 'A1',
+                    writing: 'A1',
+                    listening: 'A1',
+                    explanation: "AI yoğunluğu nedeniyle başlangıç seviyesinden başlatıldınız. İlerledikçe seviyeniz güncellenecektir." 
+                },
                 user 
             });
         }

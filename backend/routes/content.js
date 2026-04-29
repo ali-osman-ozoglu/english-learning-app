@@ -128,6 +128,18 @@ router.get('/reading', async (req, res) => {
   }
 });
 
+// Yardımcı fonksiyon: AI cevabından JSON'u temizleyip parse eder
+const safeJsonParse = (text) => {
+    try {
+        // Eğer AI cevabı ```json ... ``` içinde verdiyse temizle
+        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleaned);
+    } catch (e) {
+        console.error('JSON Parse Error:', e, 'Raw Text:', text);
+        return null;
+    }
+};
+
 // @route   POST /api/content/evaluate-reading
 // @desc    Kullanıcının okuduğu metni Gemini API ile karşılaştırır
 // @access  Public
@@ -150,11 +162,31 @@ router.post('/evaluate-reading', async (req, res) => {
     }
     `;
 
-    const responseText = await aiRotator.generateContent(prompt);
-    const evaluation = JSON.parse(responseText);
-    res.json({ success: true, evaluation });
+    try {
+        const responseText = await aiRotator.generateContent(prompt);
+        const evaluation = safeJsonParse(responseText);
+        if (evaluation) {
+            return res.json({ success: true, evaluation });
+        }
+    } catch (aiErr) {
+        console.error('AI Eval Error (Reading):', aiErr);
+    }
+
+    // AI Hatası durumunda Fallback (Basit bir karşılaştırma)
+    console.log('AI failed, using basic fallback for reading eval');
+    const origWords = originalText.toLowerCase().replace(/[.,!?]/g, '').split(' ');
+    const spokenWords = spokenText.toLowerCase().replace(/[.,!?]/g, '').split(' ');
+    
+    const wrongWords = origWords.filter(w => !spokenWords.includes(w));
+    const accuracyScore = Math.max(0, Math.round(((origWords.length - wrongWords.length) / origWords.length) * 100));
+
+    res.json({ 
+        success: true, 
+        evaluation: { accuracyScore, wrongWords, isFallback: true } 
+    });
+
   } catch (error) {
-    console.error('Reading Eval Error:', error);
+    console.error('Reading Eval General Error:', error);
     res.status(500).json({ success: false, message: 'Reading evaluation failed' });
   }
 });
@@ -186,11 +218,29 @@ router.post('/evaluate-writing', async (req, res) => {
     }
     `;
 
-    const responseText = await aiRotator.generateContent(prompt);
-    const evaluation = JSON.parse(responseText);
-    res.json({ success: true, evaluation });
+    try {
+        const responseText = await aiRotator.generateContent(prompt);
+        const evaluation = safeJsonParse(responseText);
+        if (evaluation) {
+            return res.json({ success: true, evaluation });
+        }
+    } catch (aiErr) {
+        console.error('AI Eval Error (Writing):', aiErr);
+    }
+
+    // Writing Fallback
+    res.json({ 
+        success: true, 
+        evaluation: { 
+            score: writtenText.toLowerCase().trim() === originalText.toLowerCase().trim() ? 100 : 50,
+            feedback: "Şu an detaylı analiz yapılamıyor ancak ilerlemeniz kaydedildi.",
+            correctedText: originalText,
+            isFallback: true
+        } 
+    });
+
   } catch (error) {
-    console.error('Writing Eval Error:', error);
+    console.error('Writing Eval General Error:', error);
     res.status(500).json({ success: false, message: 'Writing evaluation failed' });
   }
 });

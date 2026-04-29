@@ -59,7 +59,21 @@ export default function ReadingScreen({ navigation }: Props) {
   };
 
   const onSpeechError = (e: SpeechErrorEvent) => {
-    console.error('Speech Error:', e.error);
+    console.log('Speech Error:', e.error);
+    
+    // 7: No match (sessizlik), 11: Didn't understand (anlaşılamadı)
+    // Eğer kullanıcı henüz "Durdur"a basmadıysa, otomatik olarak tekrar başlatıyoruz.
+    const errorCode = e.error?.code;
+    if (errorCode === '7' || errorCode === '11') {
+        Voice.start('en-US', {
+            RECOGNIZER_ENGINE: 'GOOGLE',
+            EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 10000,
+            EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 10000,
+            EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 10000,
+        });
+        return;
+    }
+
     setIsRecording(false);
     Alert.alert('Mikrofon Hatası', 'Sesiniz anlaşılamadı veya yetki sorunu var.');
   };
@@ -75,7 +89,12 @@ export default function ReadingScreen({ navigation }: Props) {
 
       setSpokenText('');
       setEvaluation(null);
-      await Voice.start('en-US');
+      await Voice.start('en-US', {
+        RECOGNIZER_ENGINE: 'GOOGLE',
+        EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 10000,
+        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 10000,
+        EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 10000,
+      });
       setIsRecording(true);
     } catch (e: any) {
       console.error(e);
@@ -85,16 +104,23 @@ export default function ReadingScreen({ navigation }: Props) {
     }
   };
 
-  const stopRecordingAndEvaluate = async () => {
+  const stopRecording = async () => {
     try {
-      await Voice.stop();
-      setIsRecording(false);
-      
-      if (!spokenText.trim()) {
-          Alert.alert('Uyarı', 'Lütfen sesli olarak okuyun.');
-          return;
-      }
-      
+        await Voice.stop();
+        setIsRecording(false);
+    } catch (e) {
+        console.log('Stop Recording Error:', e);
+        setIsRecording(false);
+    }
+  };
+
+  const performEvaluation = async () => {
+    if (!spokenText.trim()) {
+        Alert.alert('Uyarı', 'Lütfen sesli olarak okuyun.');
+        return;
+    }
+    
+    try {
       setEvaluating(true);
       const currentQ = texts[currentIndex];
       const result = await evaluateReading(currentQ.englishText, spokenText);
@@ -113,6 +139,7 @@ export default function ReadingScreen({ navigation }: Props) {
       }
     } catch (e) {
       console.error(e);
+      Alert.alert('Hata', 'Analiz yapılırken bir sorun oluştu.');
     } finally {
       setEvaluating(false);
     }
@@ -195,12 +222,22 @@ export default function ReadingScreen({ navigation }: Props) {
                 <TouchableOpacity style={styles.nextButton} onPress={nextText}>
                     <Text style={styles.nextButtonText}>Sıradaki Metne Geç</Text>
                 </TouchableOpacity>
+            ) : isRecording ? (
+                <TouchableOpacity style={[styles.recordButton, styles.recordButtonActive]} onPress={stopRecording}>
+                    <Text style={styles.recordButtonText}>Durdur</Text>
+                </TouchableOpacity>
+            ) : spokenText.trim() !== '' ? (
+                <View style={styles.buttonRow}>
+                    <TouchableOpacity style={styles.secondaryButton} onPress={startRecording}>
+                        <Text style={styles.secondaryButtonText}>Tekrar Dene</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.analyzeButton} onPress={performEvaluation}>
+                        <Text style={styles.nextButtonText}>Analiz Et</Text>
+                    </TouchableOpacity>
+                </View>
             ) : (
-                <TouchableOpacity 
-                    style={[styles.recordButton, isRecording && styles.recordButtonActive]} 
-                    onPress={isRecording ? stopRecordingAndEvaluate : startRecording}
-                >
-                    <Text style={styles.recordButtonText}>{isRecording ? 'Durdur ve Analiz Et' : 'Mikrofona Bas ve Oku'}</Text>
+                <TouchableOpacity style={styles.recordButton} onPress={startRecording}>
+                    <Text style={styles.recordButtonText}>Mikrofona Bas ve Oku</Text>
                 </TouchableOpacity>
             )}
         </View>
@@ -230,4 +267,8 @@ const styles = StyleSheet.create({
   recordButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   nextButton: { backgroundColor: '#10b981', padding: 20, borderRadius: 16, alignItems: 'center' },
   nextButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  buttonRow: { flexDirection: 'row', gap: 12 },
+  secondaryButton: { flex: 1, backgroundColor: '#334155', padding: 20, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#475569' },
+  secondaryButtonText: { color: '#cbd5e1', fontSize: 18, fontWeight: 'bold' },
+  analyzeButton: { flex: 1, backgroundColor: '#f59e0b', padding: 20, borderRadius: 16, alignItems: 'center' },
 });
