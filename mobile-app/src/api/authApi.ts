@@ -2,6 +2,7 @@ import { apiClient } from './apiClient';
 
 export interface UserResponse {
   uuid: string;
+  targetLanguage?: string;
   transferCode?: string;
   transferCodeExpiresAt?: string;
   level: {
@@ -15,6 +16,21 @@ export interface UserResponse {
     reading: number;
     writing: number;
     listening: number;
+  };
+  dailyQuotas?: {
+    date: string;
+    limits: {
+      vocabulary: number;
+      reading: number;
+      writing: number;
+      listening: number;
+    };
+    counts: {
+      vocabulary: number;
+      reading: number;
+      writing: number;
+      listening: number;
+    };
   };
 }
 

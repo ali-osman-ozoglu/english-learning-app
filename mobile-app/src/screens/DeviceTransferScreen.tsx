@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, SafeAreaView } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useUserStore } from '../store/useUserStore';
 import { generateTransferCode, transferDevice } from '../api/authApi';
 import { updateUUID } from '../utils/auth';
+import { MaterialIcons } from '@expo/vector-icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'DeviceTransfer'>;
@@ -15,6 +17,7 @@ export default function DeviceTransferScreen({ navigation }: Props) {
   const [code, setCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const handleGenerateCode = async () => {
     if (!user?.uuid) return;
@@ -49,12 +52,16 @@ export default function DeviceTransferScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Geri</Text>
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <MaterialIcons name="arrow-back" size={24} color="#f8fafc" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}></Text>
+        <View style={{ width: 24 }} />
+      </View>
 
+      <View style={styles.container}>
         <Text style={styles.title}>Cihazımı Değiştir</Text>
         <Text style={styles.description}>
           Verileriniz anonim olarak tutulur. Eski telefonunuzdaki verileri buraya aktarmak için eski telefondan bir kod oluşturun ve buraya girin.
@@ -103,9 +110,18 @@ export default function DeviceTransferScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#0f172a' },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 16, 
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b'
+  },
+  backButton: { padding: 8 },
+  headerTitle: { color: '#f8fafc', fontSize: 18, fontWeight: 'bold' },
   container: { flex: 1, padding: 24 },
-  backButton: { marginBottom: 20 },
-  backText: { color: '#94a3b8', fontSize: 16 },
   title: { fontSize: 28, fontWeight: 'bold', color: '#f8fafc', marginBottom: 12 },
   description: { fontSize: 15, color: '#94a3b8', lineHeight: 22, marginBottom: 40 },
   section: { backgroundColor: '#1e293b', padding: 20, borderRadius: 16, borderWidth: 1, borderColor: '#334155' },

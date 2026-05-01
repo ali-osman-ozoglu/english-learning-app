@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, Alert } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useUserStore } from '../store/useUserStore';
 import { fetchVocabulary, VocabQuestion, submitProgress } from '../api/contentApi';
+import { ProgressBar } from '../components/ProgressBar';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Vocabulary'>;
@@ -33,9 +35,15 @@ export default function VocabularyScreen({ navigation }: Props) {
       } else {
         setQuestions(data);
       }
-    } catch (error) {
-      Alert.alert('Hata', 'Kelimeler yüklenemedi.');
-      navigation.goBack();
+    } catch (error: any) {
+      if (error.response?.status === 403 && error.response?.data?.quotaFull) {
+        Alert.alert('Bilgi', error.response.data.message || 'Tebrikler! Günlük hedefinizi tamamladınız.', [
+          { text: 'Tamam', onPress: () => navigation.goBack() }
+        ]);
+      } else {
+        Alert.alert('Hata', 'Kelimeler yüklenemedi.');
+        navigation.goBack();
+      }
     } finally {
       setLoading(false);
     }
@@ -51,13 +59,20 @@ export default function VocabularyScreen({ navigation }: Props) {
     
     if (user?.uuid) {
         try {
-            const res = await submitProgress(user.uuid, currentQ._id, 'vocabulary', correct);
-            if (res.levelUpOccurred) {
-                Alert.alert('🎉 Seviye Atladınız!', `Tebrikler! Kelime seviyeniz ${res.newLevel} oldu.`);
+            const progRes = await submitProgress(user.uuid, currentQ._id, 'vocabulary', correct);
+            if (progRes.levelUpOccurred) {
+                Alert.alert('🎉 Seviye Atladınız!', `Tebrikler! Kelime seviyeniz ${progRes.newLevel} oldu.`);
                 if (user.level) {
-                    updateUser({ level: { ...user.level, vocabulary: res.newLevel } });
+                    updateUser({ level: { ...user.level, vocabulary: progRes.newLevel } });
                 }
+            } else if (progRes.levelUpBlocked) {
+                Alert.alert('Bilgi', progRes.balanceWarning || 'Diğer modülleri geliştirmeniz gerekiyor.');
             }
+            
+            updateUser({ 
+                progress: { ...user.progress, vocabulary: progRes.currentProgress },
+                dailyQuotas: progRes.dailyQuotas
+            });
         } catch(e) {
             console.error('Submit progress failed', e);
         }
@@ -70,9 +85,11 @@ export default function VocabularyScreen({ navigation }: Props) {
         setSelectedOption(null);
         setIsCorrect(null);
       } else {
-        Alert.alert('Tebrikler!', 'Günün kelime hedefini tamamladınız.', [
-            { text: 'Ana Menüye Dön', onPress: () => navigation.goBack() }
-        ]);
+        // Liste bitti, yenisini yükle (Quota dolana kadar)
+        setCurrentIndex(0);
+        setSelectedOption(null);
+        setIsCorrect(null);
+        loadQuestions();
       }
     }, 1500);
   };
@@ -97,12 +114,12 @@ export default function VocabularyScreen({ navigation }: Props) {
             <TouchableOpacity onPress={() => navigation.goBack()}>
                 <Text style={styles.closeBtn}>✕</Text>
             </TouchableOpacity>
-            <Text style={styles.progressText}>{currentIndex + 1} / {questions.length}</Text>
         </View>
 
-        <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: `${((currentIndex + 1) / questions.length) * 100}%` }]} />
-        </View>
+        <ProgressBar 
+            currentLevel={user?.level?.vocabulary || 'A1'} 
+            progress={user?.progress?.vocabulary || 0} 
+        />
 
         <View style={styles.card}>
             <Text style={styles.levelBadge}>{user?.level?.vocabulary} Seviyesi</Text>

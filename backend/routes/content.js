@@ -5,6 +5,56 @@ const User = require('../models/User');
 const UserProgress = require('../models/UserProgress');
 const { aiRotator } = require('../utils/aiClient');
 
+// Yardımcı Fonksiyonlar
+const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+const checkAndResetQuota = async (user) => {
+  const today = new Date().toISOString().split('T')[0];
+  if (user.dailyQuotas.date !== today) {
+    user.dailyQuotas.date = today;
+    user.dailyQuotas.counts = { vocabulary: 0, reading: 0, writing: 0, listening: 0 };
+    user.dailyQuotas.limits = {
+      vocabulary: getRandomInt(200, 300),
+      reading: getRandomInt(100, 150),
+      writing: getRandomInt(150, 200),
+      listening: getRandomInt(50, 100)
+    };
+    await user.save();
+  }
+  return user;
+};
+
+const getTodaySolvedIds = async (uuid, moduleType) => {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  
+  const solvedToday = await UserProgress.find({
+    userUuid: uuid,
+    moduleType: moduleType,
+    lastSolvedAt: { $gte: startOfDay }
+  }).select('contentId');
+  
+  return solvedToday.map(p => p.contentId);
+};
+
+const checkLevelBalance = (user, targetModule, targetLevel) => {
+  const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  const targetIdx = levels.indexOf(targetLevel);
+  
+  // Tüm modüllerin mevcut seviyelerini al
+  const currentLevels = Object.entries(user.level)
+    .filter(([key]) => ['vocabulary', 'reading', 'writing', 'listening'].includes(key))
+    .map(([key, val]) => levels.indexOf(val === 'UNTESTED' ? 'A1' : val));
+    
+  const minLevelIdx = Math.min(...currentLevels);
+  
+  // Kural: Hedef seviye, en düşük seviyeden 2 koldan fazla yukarıda olamaz
+  if (targetIdx - minLevelIdx > 2) {
+    return false;
+  }
+  return true;
+};
+
 // @route   GET /api/content/vocabulary
 // @desc    Kullanıcının seviyesine uygun ve önceliği yüksek kelimeleri getirir
 // @access  Public
@@ -19,6 +69,16 @@ router.get('/vocabulary', async (req, res) => {
     const user = await User.findOne({ uuid });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
+    // Kota kontrolü ve sıfırlama
+    await checkAndResetQuota(user);
+    if (user.dailyQuotas.counts.vocabulary >= user.dailyQuotas.limits.vocabulary) {
+      return res.status(403).json({ 
+        success: false, 
+        quotaFull: true, 
+        message: 'Tebrikler! Günlük kelime hedefinizi tamamladınız. Yarın yeni hedeflerle devam edebilirsiniz!' 
+      });
+    }
+
     let userVocabLevel = user.level.vocabulary || 'A1';
     if (userVocabLevel === 'UNTESTED') userVocabLevel = 'A1';
 
@@ -26,11 +86,15 @@ router.get('/vocabulary', async (req, res) => {
     const optionsCountMap = { 'A1': 2, 'A2': 2, 'B1': 3, 'B2': 3, 'C1': 4, 'C2': 4 };
     const optionsCount = optionsCountMap[userVocabLevel] || 2;
 
-    // Spaced Repetition Mantığı: Önce vakti gelmiş kelimeleri bulalım
+    // Bugün çözülenleri al
+    const todaySolvedIds = await getTodaySolvedIds(uuid, 'vocabulary');
+
+    // Spaced Repetition Mantığı: Önce vakti gelmiş kelimeleri bulalım (Bugün çözülenler hariç)
     const dueProgress = await UserProgress.find({
       userUuid: uuid,
       moduleType: 'vocabulary',
-      nextReviewDate: { $lte: new Date() }
+      nextReviewDate: { $lte: new Date() },
+      contentId: { $nin: todaySolvedIds }
     }).select('contentId');
 
     const dueContentIds = dueProgress.map(p => p.contentId);
@@ -48,7 +112,12 @@ router.get('/vocabulary', async (req, res) => {
 
       const needed = 10 - words.length;
       const newWords = await Content.aggregate([
-        { $match: { _id: { $nin: seenContentIds }, type: 'word', level: userVocabLevel, priority: { $gt: 0 } } },
+        { $match: { 
+            _id: { $nin: [...seenContentIds, ...todaySolvedIds] }, 
+            type: 'word', 
+            level: userVocabLevel, 
+            priority: { $gt: 0 } 
+        } },
         { $sort: { priority: -1 } }, 
         { $sample: { size: needed } }
       ]);
@@ -98,8 +167,19 @@ router.get('/reading', async (req, res) => {
     const user = await User.findOne({ uuid });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    // Modüle göre seviyeyi seç (reading, writing, listening)
     const moduleType = requestedModule || 'reading';
+    
+    // Kota kontrolü ve sıfırlama
+    await checkAndResetQuota(user);
+    if (user.dailyQuotas.counts[moduleType] >= user.dailyQuotas.limits[moduleType]) {
+      return res.status(403).json({ 
+        success: false, 
+        quotaFull: true, 
+        message: `Tebrikler! Günlük ${moduleType === 'reading' ? 'okuma' : moduleType === 'writing' ? 'yazma' : 'dinleme'} hedefinizi tamamladınız. Yarın yeni hedeflerle devam edebilirsiniz!` 
+      });
+    }
+
+    // Modüle göre seviyeyi seç (reading, writing, listening)
     let userLevel = user.level[moduleType] || 'A1';
     if (userLevel === 'UNTESTED') userLevel = 'A1';
 
@@ -110,8 +190,16 @@ router.get('/reading', async (req, res) => {
     if (userLevel === 'B2') targetTypes = ['sentence', 'paragraph'];
     if (userLevel === 'C1' || userLevel === 'C2') targetTypes = ['paragraph'];
 
+    // Bugün çözülenleri hariç tut
+    const todaySolvedIds = await getTodaySolvedIds(uuid, moduleType);
+
     const readingTextsRaw = await Content.aggregate([
-      { $match: { type: { $in: targetTypes }, level: userLevel, priority: { $gt: 0 } } },
+      { $match: { 
+          _id: { $nin: todaySolvedIds },
+          type: { $in: targetTypes }, 
+          level: userLevel, 
+          priority: { $gt: 0 } 
+      } },
       { $sort: { priority: -1 } },
       { $sample: { size: 5 } }
     ]);
@@ -233,7 +321,7 @@ router.post('/evaluate-writing', async (req, res) => {
         success: true, 
         evaluation: { 
             score: writtenText.toLowerCase().trim() === originalText.toLowerCase().trim() ? 100 : 50,
-            feedback: "Şu an detaylı analiz yapılamıyor ancak ilerlemeniz kaydedildi.",
+            feedback: "Google Gemini yapay zeka günlük kota sınırına ulaşıldı. Şu an detaylı analiz yapılamıyor ancak basit kelime doğrulaması yapıldı ve ilerlemeniz kaydedildi.",
             correctedText: originalText,
             isFallback: true
         } 
@@ -273,17 +361,16 @@ router.post('/submit-progress', async (req, res) => {
     let q = isSuccess ? 4 : 0; // Quality of response
     if (isSuccess) {
       // Özel aralıklar:
-      if (progress.repetitions === 0) progress.interval = 0; // Bugün 1 kez
-      else if (progress.repetitions === 1) progress.interval = 1; // Yarın 1 kez
-      else if (progress.repetitions === 2) progress.interval = 3; // 3 gün sonra
-      else if (progress.repetitions === 3) progress.interval = 7; // 1 hafta sonra
+      if (progress.repetitions === 0) progress.interval = 1; // Bugün bitti, yarın tekrar (interval=1)
+      else if (progress.repetitions === 1) progress.interval = 3; // Yarın bitti, 3 gün sonra
+      else if (progress.repetitions === 2) progress.interval = 7; // 3 gün bitti, 1 hafta sonra
       else progress.interval = Math.round(progress.interval * progress.easeFactor); // Sonrası SuperMemo-2
       
       progress.repetitions += 1;
       progress.correctCount += 1;
     } else {
       progress.repetitions = 0;
-      progress.interval = 1;
+      progress.interval = 0; // Hemen tekrar listesine girsin (ama bugün tekrar çıkmayacak filter sayesinde, yarın çıkar)
       progress.incorrectCount += 1;
     }
 
@@ -292,13 +379,22 @@ router.post('/submit-progress', async (req, res) => {
 
     // Sonraki tekrar tarihini ayarla
     const nextDate = new Date();
+    // interval gün sayısını ekle
     nextDate.setDate(nextDate.getDate() + progress.interval);
+    // Saatleri sıfırla ki gün bazlı olsun
+    nextDate.setHours(0,0,0,0);
+    
     progress.nextReviewDate = nextDate;
+    progress.lastSolvedAt = new Date(); // Bugün çözüldü olarak işaretle
     if (score !== undefined) progress.lastScore = score;
 
     await progress.save();
 
-    // 2. Seviye Atlama (Level Up) Mantığı
+    // 2. Günlük Kota İlerlemesi
+    user.dailyQuotas.counts[moduleType] = (user.dailyQuotas.counts[moduleType] || 0) + 1;
+    await user.save();
+
+    // 3. Seviye Atlama (Level Up) Mantığı
     let levelUpOccurred = false;
     let newLevel = user.level[moduleType];
 
@@ -330,7 +426,21 @@ router.post('/submit-progress', async (req, res) => {
                 const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
                 const currentIndex = levels.indexOf(currentLevel);
                 if (currentIndex >= 0 && currentIndex < levels.length - 1) {
-                    newLevel = levels[currentIndex + 1];
+                    const nextLevelCandidate = levels[currentIndex + 1];
+                    
+                    // SEVİYE DENGESİ KONTROLÜ
+                    if (!checkLevelBalance(user, moduleType, nextLevelCandidate)) {
+                        return res.json({ 
+                            success: true, 
+                            message: 'Progress recorded, but level up blocked by balance rule.', 
+                            levelUpBlocked: true,
+                            balanceWarning: 'Diğer modüllerdeki seviyeniz çok geride kaldığı için şu an seviye atlayamazsınız. Lütfen diğer alanlarda da kendinizi geliştirin.',
+                            nextReviewDate: progress.nextReviewDate,
+                            currentProgress: 100 // %100'de kalsın ama seviye atlamasın
+                        });
+                    }
+
+                    newLevel = nextLevelCandidate;
                     user.level[moduleType] = newLevel;
                     user.progress[moduleType] = 0; // Bir sonraki seviye için sıfırla
                     levelUpOccurred = true;

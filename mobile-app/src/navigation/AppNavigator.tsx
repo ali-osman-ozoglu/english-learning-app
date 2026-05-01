@@ -11,12 +11,18 @@ import VocabularyScreen from '../screens/VocabularyScreen';
 import ReadingScreen from '../screens/ReadingScreen';
 import WritingScreen from '../screens/WritingScreen';
 import ListeningScreen from '../screens/ListeningScreen';
+import SplashScreen from '../screens/SplashScreen';
+import LanguageSelectionScreen from '../screens/LanguageSelectionScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import { getOrCreateUUID } from '../utils/auth';
 import { registerDevice } from '../api/authApi';
 import { useUserStore } from '../store/useUserStore';
 
 export type RootStackParamList = {
+  Splash: undefined;
+  LanguageSelection: undefined;
   Home: undefined;
+  Settings: undefined;
   DeviceTransfer: undefined;
   Survey: undefined;
   SurveyResult: { evaluation: any };
@@ -30,46 +36,49 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
   const { user, isLoading, setLoading, setUser } = useUserStore();
+  const [showSplash, setShowSplash] = React.useState(true);
 
   useEffect(() => {
     const initApp = async () => {
       try {
-        // 1. Cihaz UUID'sini getir veya oluştur (Anonim)
         const uuid = await getOrCreateUUID();
-        
-        // 2. Backend'e bağlan ve kullanıcı verilerini al/kaydet
         const user = await registerDevice(uuid);
-        
-        // 3. State'e kaydet ve yükleme ekranını kapat
         setUser(user);
+        
+        // Splash ekranını 2 saniye göster
+        setTimeout(() => {
+          setShowSplash(false);
+          setLoading(false);
+        }, 2000);
       } catch (error) {
         console.error('App initialization failed:', error);
         setLoading(false);
+        setShowSplash(false);
       }
     };
     initApp();
   }, []);
 
-  if (isLoading) {
-    return (
-      <View style={styles.splashContainer}>
-        <ActivityIndicator size="large" color="#38bdf8" />
-        <Text style={styles.splashText}>Yapay Zeka Hazırlanıyor...</Text>
-      </View>
-    );
+  if (isLoading || showSplash) {
+    return <SplashScreen />;
   }
+
+  // İlk giriş kontrolü: Eğer seviye UNTESTED ise dil seçimine yönlendir
+  const isFirstTime = user?.level?.vocabulary === 'UNTESTED';
 
   return (
     <NavigationContainer>
       <Stack.Navigator 
-        initialRouteName={user?.level?.vocabulary === 'UNTESTED' ? 'Survey' : 'Home'}
+        initialRouteName={isFirstTime ? 'LanguageSelection' : 'Home'}
         screenOptions={{ 
           headerShown: false, 
           contentStyle: { backgroundColor: '#0f172a' },
           animation: 'fade_from_bottom'
         }}
       >
+        <Stack.Screen name="LanguageSelection" component={LanguageSelectionScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Survey" component={SurveyScreen} />
         <Stack.Screen name="SurveyResult" component={SurveyResultScreen} />
         <Stack.Screen name="Vocabulary" component={VocabularyScreen} />

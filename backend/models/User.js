@@ -29,6 +29,22 @@ const userSchema = new mongoose.Schema({
     reading: { type: Number, default: 0, min: 0, max: 100 },
     writing: { type: Number, default: 0, min: 0, max: 100 },
     listening: { type: Number, default: 0 }
+  },
+  // Günlük kota takibi
+  dailyQuotas: {
+    date: { type: String, default: "" }, // YYYY-MM-DD
+    limits: {
+      vocabulary: { type: Number, default: 0 },
+      reading: { type: Number, default: 0 },
+      writing: { type: Number, default: 0 },
+      listening: { type: Number, default: 0 }
+    },
+    counts: {
+      vocabulary: { type: Number, default: 0 },
+      reading: { type: Number, default: 0 },
+      writing: { type: Number, default: 0 },
+      listening: { type: Number, default: 0 }
+    }
   }
 }, { timestamps: true });
 

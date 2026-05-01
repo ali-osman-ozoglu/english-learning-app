@@ -23,6 +23,7 @@ const userProgressSchema = new mongoose.Schema({
   easeFactor: { type: Number, default: 2.5 },
   interval: { type: Number, default: 1 }, // Gün cinsinden sonraki tekrar süresi
   nextReviewDate: { type: Date, default: Date.now },
+  lastSolvedAt: { type: Date, default: null }, // Bugün çözülüp çözülmediğini anlamak için
   
   // İstatistikler
   correctCount: { type: Number, default: 0 },

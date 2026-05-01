@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, Alert, TextInput, ScrollView } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, TextInput, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useUserStore } from '../store/useUserStore';
 import { fetchReading, evaluateWriting, ReadingText, WritingEvaluation, submitProgress } from '../api/contentApi';
+import { ProgressBar } from '../components/ProgressBar';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Writing'>;
@@ -36,9 +38,15 @@ export default function WritingScreen({ navigation }: Props) {
       } else {
         setTexts(data);
       }
-    } catch (error) {
-      Alert.alert('Hata', 'İçerikler yüklenemedi.');
-      navigation.goBack();
+    } catch (error: any) {
+      if (error.response?.status === 403 && error.response?.data?.quotaFull) {
+        Alert.alert('Bilgi', error.response.data.message || 'Tebrikler! Günlük hedefinizi tamamladınız.', [
+          { text: 'Tamam', onPress: () => navigation.goBack() }
+        ]);
+      } else {
+        Alert.alert('Hata', 'İçerikler yüklenemedi.');
+        navigation.goBack();
+      }
     } finally {
       setLoading(false);
     }
@@ -60,9 +68,16 @@ export default function WritingScreen({ navigation }: Props) {
             try {
                 const progRes = await submitProgress(user.uuid, currentQ._id, 'writing', false, result.score);
                 if (progRes.levelUpOccurred) {
-                    Alert.alert('🎉 Seviye Atladınız!', `Tebrikler! Yazma seviyeniz ${progRes.newLevel} oldu.`);
-                    if (user.level) updateUser({ level: { ...user.level, writing: progRes.newLevel } });
-                }
+                  Alert.alert('🎉 Seviye Atladınız!', `Tebrikler! Yazma seviyeniz ${progRes.newLevel} oldu.`);
+                  if (user.level) updateUser({ level: { ...user.level, writing: progRes.newLevel } });
+              } else if (progRes.levelUpBlocked) {
+                  Alert.alert('Bilgi', progRes.balanceWarning || 'Diğer modülleri geliştirmeniz gerekiyor.');
+              }
+              
+              updateUser({ 
+                progress: { ...user.progress, writing: progRes.currentProgress },
+                dailyQuotas: progRes.dailyQuotas
+              });
             } catch(e) { console.error(e); }
         }
 
@@ -79,9 +94,9 @@ export default function WritingScreen({ navigation }: Props) {
     if (currentIndex < texts.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      Alert.alert('Tebrikler!', 'Günün yazma hedefini tamamladınız.', [
-        { text: 'Ana Menüye Dön', onPress: () => navigation.goBack() }
-      ]);
+      // Liste bitti, yenisini yükle
+      setCurrentIndex(0);
+      loadTexts();
     }
   };
 
@@ -104,8 +119,12 @@ export default function WritingScreen({ navigation }: Props) {
             <TouchableOpacity onPress={() => navigation.goBack()}>
                 <Text style={styles.closeBtn}>✕</Text>
             </TouchableOpacity>
-            <Text style={styles.progressText}>{currentIndex + 1} / {texts.length}</Text>
         </View>
+
+        <ProgressBar 
+            currentLevel={user?.level?.writing || 'A1'} 
+            progress={user?.progress?.writing || 0} 
+        />
 
         <View style={styles.card}>
             <Text style={styles.levelBadge}>{user?.level?.writing} Seviyesi - Çeviri Görevi</Text>

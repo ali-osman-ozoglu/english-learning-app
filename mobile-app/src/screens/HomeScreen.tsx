@@ -1,103 +1,87 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useUserStore } from '../store/useUserStore';
+
+import { MaterialIcons } from '@expo/vector-icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
 };
 
 export default function HomeScreen({ navigation }: Props) {
-  const { user, isInitializing } = useUserStore();
+  const { user } = useUserStore();
 
-  if (isInitializing) {
+  const renderModuleCard = (
+    id: 'vocabulary' | 'reading' | 'writing' | 'listening',
+    title: string,
+    desc: string,
+    icon: string,
+    navScreen: keyof RootStackParamList,
+    bgColor: string
+  ) => {
+    const isLocked = user?.dailyQuotas?.counts && user?.dailyQuotas?.limits && 
+                     user.dailyQuotas.counts[id] >= user.dailyQuotas.limits[id];
+
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#38bdf8" />
-        <Text style={styles.loadingText}>Bağlantı Kuruluyor...</Text>
-      </View>
+      <TouchableOpacity 
+        key={id}
+        style={[styles.moduleCard, isLocked && styles.moduleCardLocked]} 
+        activeOpacity={isLocked ? 1 : 0.8}
+        onPress={() => !isLocked && navigation.navigate(navScreen as any)}
+      >
+          <View style={[styles.moduleIconBg, { backgroundColor: isLocked ? 'rgba(71, 85, 105, 0.2)' : bgColor }]}>
+            <Text style={[styles.moduleIcon, isLocked && styles.moduleIconLocked]}>{icon}</Text>
+          </View>
+          <View style={styles.moduleTextContainer}>
+              <Text style={[styles.moduleTitle, isLocked && styles.moduleTextLocked]}>{title}</Text>
+              <Text style={[styles.moduleDesc, isLocked && styles.moduleTextLocked]}>
+                {isLocked ? 'Günlük Hedef Tamamlandı' : `${desc} (${user?.level?.[id] || 'A1'})`}
+              </Text>
+          </View>
+          <Text style={[styles.chevron, isLocked && styles.moduleTextLocked]}>{isLocked ? '🔒' : '›'}</Text>
+      </TouchableOpacity>
     );
-  }
+  };
+
+  const targetLanguage = user?.targetLanguage || 'en';
+  const appNames: Record<string, string> = {
+    en: 'myEnglish',
+    es: 'mySpanish',
+    pt: 'myPortuguese',
+    de: 'myGerman',
+    it: 'myItalian',
+  };
+  const appName = appNames[targetLanguage] || 'myLanguage';
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Hoş Geldiniz,</Text>
-          <Text style={styles.anonId}>
-            Anonim ID: {user?.uuid ? `${user.uuid.substring(0, 8)}...` : 'Bekleniyor'}
-          </Text>
-        </View>
+        <Text style={styles.appName}>{appName}</Text>
         <TouchableOpacity 
-          style={styles.transferButton}
-          onPress={() => navigation.navigate('DeviceTransfer')}
+          style={styles.settingsButton}
+          onPress={() => navigation.navigate('Settings')}
         >
-          <Text style={styles.transferButtonText}>Cihazımı Değiştir</Text>
+          <MaterialIcons name="settings" size={28} color="#94a3b8" />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
-          <Text style={styles.title}>İngilizce Serüveniniz Başlıyor</Text>
+          <Text style={styles.title}>Hoş Geldiniz</Text>
           <Text style={styles.subtitle}>
-            Kişisel verileriniz cihazınızda güvendedir. Tamamen anonim olarak ilerlemenizi kaydediyoruz.
+            Dil öğrenme serüveninizde yapay zeka yanınızda. Bugün hangi becerinizi geliştirmek istersiniz?
           </Text>
           
           <View style={styles.modulesContainer}>
             <Text style={styles.sectionTitle}>Öğrenme Modülleri</Text>
             
-            <TouchableOpacity 
-              style={styles.moduleCard} 
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('Vocabulary')}
-            >
-                <View style={styles.moduleIconBg}><Text style={styles.moduleIcon}>📚</Text></View>
-                <View style={styles.moduleTextContainer}>
-                    <Text style={styles.moduleTitle}>Kelime Kartları</Text>
-                    <Text style={styles.moduleDesc}>Seviyenize ({user?.level?.vocabulary || 'A1'}) uygun kelimeler</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.moduleCard} 
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('Reading')}
-            >
-                <View style={[styles.moduleIconBg, {backgroundColor: 'rgba(16, 185, 129, 0.15)'}]}><Text style={styles.moduleIcon}>🎤</Text></View>
-                <View style={styles.moduleTextContainer}>
-                    <Text style={styles.moduleTitle}>Sesli Okuma</Text>
-                    <Text style={styles.moduleDesc}>Telaffuzunuzu yapay zeka ile ölçün ({user?.level?.reading || 'A1'})</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.moduleCard} 
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('Writing')}
-            >
-                <View style={[styles.moduleIconBg, {backgroundColor: 'rgba(168, 85, 247, 0.15)'}]}><Text style={styles.moduleIcon}>✍️</Text></View>
-                <View style={styles.moduleTextContainer}>
-                    <Text style={styles.moduleTitle}>Çeviri & Yazma</Text>
-                    <Text style={styles.moduleDesc}>AI öğretmenden geri bildirim alın ({user?.level?.writing || 'A1'})</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.moduleCard} 
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('Listening')}
-            >
-                <View style={[styles.moduleIconBg, {backgroundColor: 'rgba(236, 72, 153, 0.15)'}]}><Text style={styles.moduleIcon}>🎧</Text></View>
-                <View style={styles.moduleTextContainer}>
-                    <Text style={styles.moduleTitle}>Dinleme & Dikte</Text>
-                    <Text style={styles.moduleDesc}>Duyduğunuz metni İngilizceye dökün ({user?.level?.listening || 'A1'})</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
+            {renderModuleCard('vocabulary', 'Kelime Kartları', 'Seviyenize uygun kelimeler', '📚', 'Vocabulary', 'rgba(56, 189, 248, 0.15)')}
+            {renderModuleCard('reading', 'Sesli Okuma', 'Telaffuz ölçümü', '🎤', 'Reading', 'rgba(16, 185, 129, 0.15)')}
+            {renderModuleCard('writing', 'Çeviri & Yazma', 'AI öğretmen geri bildirimi', '✍️', 'Writing', 'rgba(168, 85, 247, 0.15)')}
+            {renderModuleCard('listening', 'Dinleme & Dikte', 'Duyduğunuzu yazın', '🎧', 'Listening', 'rgba(236, 72, 153, 0.15)')}
           </View>
         </View>
       </ScrollView>
@@ -114,22 +98,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 16,
     paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
   },
-  greeting: { color: '#94a3b8', fontSize: 14 },
-  anonId: { color: '#f8fafc', fontSize: 16, fontWeight: 'bold', marginTop: 4 },
-  transferButton: {
-    backgroundColor: '#1e293b',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#334155'
+  appName: { color: '#38bdf8', fontSize: 20, fontWeight: '900', letterSpacing: 1 },
+  settingsButton: {
+    padding: 4,
   },
-  transferButtonText: { color: '#38bdf8', fontSize: 12, fontWeight: '600' },
   scrollContent: { flexGrow: 1 },
   content: { flex: 1, padding: 24 },
   title: { color: '#f8fafc', fontSize: 28, fontWeight: '900', marginBottom: 12 },
@@ -137,10 +112,13 @@ const styles = StyleSheet.create({
   modulesContainer: { flex: 1 },
   sectionTitle: { color: '#e2e8f0', fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
   moduleCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1e293b', padding: 20, borderRadius: 16, marginBottom: 16, borderWidth: 1, borderColor: '#334155' },
-  moduleIconBg: { width: 50, height: 50, borderRadius: 12, backgroundColor: 'rgba(56, 189, 248, 0.15)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  moduleCardLocked: { opacity: 0.5, borderColor: '#1e293b' },
+  moduleIconBg: { width: 50, height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   moduleIcon: { fontSize: 24 },
+  moduleIconLocked: { opacity: 0.3 },
   moduleTextContainer: { flex: 1 },
   moduleTitle: { color: '#f8fafc', fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
   moduleDesc: { color: '#94a3b8', fontSize: 13 },
+  moduleTextLocked: { color: '#475569' },
   chevron: { color: '#64748b', fontSize: 24, fontWeight: '300' },
 });

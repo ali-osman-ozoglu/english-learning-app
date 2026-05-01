@@ -1,10 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, Alert } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice';
+import { MaterialIcons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useUserStore } from '../store/useUserStore';
 import { fetchReading, evaluateReading, ReadingText, submitProgress } from '../api/contentApi';
+import { ProgressBar } from '../components/ProgressBar';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Reading'>;
@@ -21,11 +24,26 @@ export default function ReadingScreen({ navigation }: Props) {
   
   const [evaluating, setEvaluating] = useState(false);
   const [evaluation, setEvaluation] = useState<{ accuracyScore: number, wrongWords: string[] } | null>(null);
+  const isManualStopRef = useRef(false);
+  const committedTextRef = useRef('');
+  const retryCountRef = useRef(0);
 
   useEffect(() => {
     loadTexts();
     
+    Voice.onSpeechStart = () => { console.log('Speech Started'); setIsRecording(true); };
+    Voice.onSpeechEnd = () => {
+        console.log('Speech Ended');
+        setIsRecording(false); // Kayıt durduğunu UI'a bildir
+    };
     Voice.onSpeechResults = onSpeechResults;
+    Voice.onSpeechPartialResults = (e: SpeechResultsEvent) => {
+      if (e.value && e.value.length > 0) {
+        const currentPart = e.value[0];
+        const fullText = (committedTextRef.current + ' ' + currentPart).trim();
+        setSpokenText(fullText);
+      }
+    };
     Voice.onSpeechError = onSpeechError;
     
     return () => {
@@ -44,9 +62,15 @@ export default function ReadingScreen({ navigation }: Props) {
       } else {
         setTexts(data);
       }
-    } catch (error) {
-      Alert.alert('Hata', 'Metinler yüklenemedi.');
-      navigation.goBack();
+    } catch (error: any) {
+      if (error.response?.status === 403 && error.response?.data?.quotaFull) {
+        Alert.alert('Bilgi', error.response.data.message || 'Tebrikler! Günlük hedefinizi tamamladınız.', [
+          { text: 'Tamam', onPress: () => navigation.goBack() }
+        ]);
+      } else {
+        Alert.alert('Hata', 'Metinler yüklenemedi.');
+        navigation.goBack();
+      }
     } finally {
       setLoading(false);
     }
@@ -54,64 +78,90 @@ export default function ReadingScreen({ navigation }: Props) {
 
   const onSpeechResults = (e: SpeechResultsEvent) => {
     if (e.value && e.value.length > 0) {
-      setSpokenText(e.value[0]);
+      const finalPart = e.value[0];
+      committedTextRef.current = (committedTextRef.current + ' ' + finalPart).trim();
+      setSpokenText(committedTextRef.current);
     }
   };
 
   const onSpeechError = (e: SpeechErrorEvent) => {
-    console.log('Speech Error:', e.error);
-    
-    // 7: No match (sessizlik), 11: Didn't understand (anlaşılamadı)
-    // Eğer kullanıcı henüz "Durdur"a basmadıysa, otomatik olarak tekrar başlatıyoruz.
     const errorCode = e.error?.code;
-    if (errorCode === '7' || errorCode === '11') {
-        Voice.start('en-US', {
-            RECOGNIZER_ENGINE: 'GOOGLE',
-            EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 10000,
-            EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 10000,
-            EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 10000,
-        });
+    console.log('Speech Error (Code ' + errorCode + '):', e.error);
+    
+    // Eğer kullanıcı kendisi durdurduysa hiçbir şey yapma
+    if (isManualStopRef.current) return;
+
+    // 7: No match (sessizlik), 11: Didn't understand, 6: Speech timeout, 8: Busy
+    if (errorCode === '7' || errorCode === '11' || errorCode === '6' || errorCode === '8' || errorCode === '5') {
+        setIsRecording(false);
         return;
     }
 
     setIsRecording(false);
-    Alert.alert('Mikrofon Hatası', 'Sesiniz anlaşılamadı veya yetki sorunu var.');
+    Alert.alert('Mikrofon Hatası (' + errorCode + ')', 'Sesiniz anlaşılamadı veya teknik bir sorun oluştu.');
   };
 
   const startRecording = async () => {
     try {
-      // Modülün yüklü olup olmadığını kontrol et
+      retryCountRef.current = 0; // Reset retry count
+      // Önceki bir session varsa temizle
+      await Voice.stop().catch(() => {});
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       const isAvailable = await Voice.isAvailable();
       if (!isAvailable) {
-        Alert.alert('Hata', 'Ses tanıma modülü bu cihazda kullanılamıyor. Lütfen izinleri kontrol edin veya uygulamayı yeniden derleyin.');
+        Alert.alert('Hata', 'Ses tanıma modülü bu cihazda kullanılamıyor.');
         return;
       }
 
       setSpokenText('');
       setEvaluation(null);
-      await Voice.start('en-US', {
-        RECOGNIZER_ENGINE: 'GOOGLE',
+      isManualStopRef.current = false;
+      committedTextRef.current = '';
+      await Voice.start('en-US', { EXTRA_PARTIAL_RESULTS: true });
+      setIsRecording(true);
+    } catch (e: any) {
+      console.log('Start Error:', e);
+      setIsRecording(false);
+    }
+  };
+
+  const continueRecording = async () => {
+    try {
+      isManualStopRef.current = false;
+      await Voice.start('en-US', { 
+        EXTRA_PARTIAL_RESULTS: true,
         EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 10000,
         EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 10000,
         EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 10000,
       });
       setIsRecording(true);
-    } catch (e: any) {
-      console.error(e);
-      if (e.message?.includes('null')) {
-        Alert.alert('Native Module Hatası', 'Ses tanıma kütüphanesi (Native) yüklenemedi. Lütfen terminalde "npx expo prebuild" komutunu çalıştırıp Android Studio\'dan tekrar derleyin.');
-      }
+    } catch (e) {
+      console.log('Continue Error:', e);
+      setIsRecording(false);
     }
   };
 
   const stopRecording = async () => {
     try {
+        isManualStopRef.current = true;
         await Voice.stop();
         setIsRecording(false);
     } catch (e) {
         console.log('Stop Recording Error:', e);
         setIsRecording(false);
     }
+  };
+
+  const resetRecording = async () => {
+    try {
+      await Voice.destroy().catch(() => {});
+    } catch (e) {}
+    setSpokenText('');
+    setEvaluation(null);
+    committedTextRef.current = '';
+    setIsRecording(false);
+    retryCountRef.current = 0;
   };
 
   const performEvaluation = async () => {
@@ -132,7 +182,15 @@ export default function ReadingScreen({ navigation }: Props) {
               if (progRes.levelUpOccurred) {
                   Alert.alert('🎉 Seviye Atladınız!', `Tebrikler! Okuma seviyeniz ${progRes.newLevel} oldu.`);
                   if (user.level) updateUser({ level: { ...user.level, reading: progRes.newLevel } });
+              } else if (progRes.levelUpBlocked) {
+                  Alert.alert('Bilgi', progRes.balanceWarning || 'Diğer modülleri geliştirmeniz gerekiyor.');
               }
+              
+              // Her durumda store'u son ilerleme ile güncelle
+              updateUser({ 
+                progress: { ...user.progress, reading: progRes.currentProgress },
+                dailyQuotas: progRes.dailyQuotas // Eğer API döndürüyorsa
+              });
           } catch(e) {
               console.error(e);
           }
@@ -151,9 +209,9 @@ export default function ReadingScreen({ navigation }: Props) {
     if (currentIndex < texts.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      Alert.alert('Tebrikler!', 'Günün okuma hedefini tamamladınız.', [
-        { text: 'Ana Menüye Dön', onPress: () => navigation.goBack() }
-      ]);
+      // Liste bitti, yenisini yükle
+      setCurrentIndex(0);
+      loadTexts();
     }
   };
 
@@ -196,8 +254,12 @@ export default function ReadingScreen({ navigation }: Props) {
             <TouchableOpacity onPress={() => navigation.goBack()}>
                 <Text style={styles.closeBtn}>✕</Text>
             </TouchableOpacity>
-            <Text style={styles.progressText}>{currentIndex + 1} / {texts.length}</Text>
         </View>
+
+        <ProgressBar 
+            currentLevel={user?.level?.reading || 'A1'} 
+            progress={user?.progress?.reading || 0} 
+        />
 
         <View style={styles.card}>
             <Text style={styles.levelBadge}>{user?.level?.reading} Seviyesi</Text>
@@ -224,12 +286,15 @@ export default function ReadingScreen({ navigation }: Props) {
                 </TouchableOpacity>
             ) : isRecording ? (
                 <TouchableOpacity style={[styles.recordButton, styles.recordButtonActive]} onPress={stopRecording}>
-                    <Text style={styles.recordButtonText}>Durdur</Text>
+                    <MaterialIcons name="stop" size={40} color="#fff" />
                 </TouchableOpacity>
             ) : spokenText.trim() !== '' ? (
                 <View style={styles.buttonRow}>
-                    <TouchableOpacity style={styles.secondaryButton} onPress={startRecording}>
-                        <Text style={styles.secondaryButtonText}>Tekrar Dene</Text>
+                    <TouchableOpacity style={styles.resetButton} onPress={resetRecording}>
+                        <Text style={styles.secondaryButtonText}>Sıfırla</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.secondaryButton} onPress={continueRecording}>
+                        <Text style={styles.secondaryButtonText}>Devam Et</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.analyzeButton} onPress={performEvaluation}>
                         <Text style={styles.nextButtonText}>Analiz Et</Text>
@@ -237,7 +302,7 @@ export default function ReadingScreen({ navigation }: Props) {
                 </View>
             ) : (
                 <TouchableOpacity style={styles.recordButton} onPress={startRecording}>
-                    <Text style={styles.recordButtonText}>Mikrofona Bas ve Oku</Text>
+                    <MaterialIcons name="mic" size={40} color="#fff" />
                 </TouchableOpacity>
             )}
         </View>
@@ -261,14 +326,27 @@ const styles = StyleSheet.create({
   spokenContainer: { marginTop: 30, padding: 20, backgroundColor: 'rgba(15, 23, 42, 0.5)', borderRadius: 12 },
   spokenLabel: { color: '#94a3b8', fontSize: 14, marginBottom: 8 },
   spokenText: { color: '#cbd5e1', fontSize: 16, fontStyle: 'italic' },
-  footer: { marginTop: 'auto', marginBottom: 20 },
-  recordButton: { backgroundColor: '#f59e0b', padding: 20, borderRadius: 16, alignItems: 'center' },
-  recordButtonActive: { backgroundColor: '#ef4444' },
+  footer: { marginTop: 'auto', marginBottom: 50, alignItems: 'center' },
+  recordButton: { 
+    backgroundColor: '#f59e0b', 
+    width: 80, 
+    height: 80, 
+    borderRadius: 40, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  recordButtonActive: { backgroundColor: '#ef4444', shadowColor: '#ef4444' },
   recordButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  nextButton: { backgroundColor: '#10b981', padding: 20, borderRadius: 16, alignItems: 'center' },
+  nextButton: { backgroundColor: '#10b981', padding: 20, borderRadius: 16, alignItems: 'center', width: '100%' },
   nextButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  buttonRow: { flexDirection: 'row', gap: 12 },
-  secondaryButton: { flex: 1, backgroundColor: '#334155', padding: 20, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#475569' },
-  secondaryButtonText: { color: '#cbd5e1', fontSize: 18, fontWeight: 'bold' },
-  analyzeButton: { flex: 1, backgroundColor: '#f59e0b', padding: 20, borderRadius: 16, alignItems: 'center' },
+  buttonRow: { flexDirection: 'row', gap: 8 },
+  resetButton: { flex: 1, backgroundColor: '#475569', padding: 15, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  secondaryButton: { flex: 1.2, backgroundColor: '#334155', padding: 15, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#475569' },
+  secondaryButtonText: { color: '#cbd5e1', fontSize: 16, fontWeight: 'bold' },
+  analyzeButton: { flex: 1.5, backgroundColor: '#f59e0b', padding: 15, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 });

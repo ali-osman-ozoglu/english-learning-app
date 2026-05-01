@@ -20,6 +20,9 @@ router.post('/evaluate', async (req, res) => {
     ${JSON.stringify(answers, null, 2)}
     
     Lütfen kullanıcının Kelime Bilgisi (vocabulary), Okuma (reading), Yazma (writing) ve Dinleme (listening) seviyelerini (A1, A2, B1, B2, C1, C2) belirle.
+    
+    ÖNEMLİ KURAL: Herhangi iki modül arasındaki seviye farkı en fazla 1 kur olmalıdır. Örneğin bir modül A1 ise diğeri en fazla A2 olabilir, B1 olamaz. Tüm seviyeler birbirine yakın olmalıdır.
+    
     Dinleme yeteneğini diğer yeteneklerden yola çıkarak mantıklı bir şekilde tahmin et.
     Sadece aşağıdaki formatta geçerli bir JSON döndür (markdown veya başka hiçbir metin ekleme, doğrudan JSON):
     {

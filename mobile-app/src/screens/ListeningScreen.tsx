@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView, Alert, TextInput, ScrollView } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, TextInput, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Speech from 'expo-speech';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useUserStore } from '../store/useUserStore';
 import { fetchReading, evaluateWriting, ReadingText, WritingEvaluation, submitProgress } from '../api/contentApi';
+import { ProgressBar } from '../components/ProgressBar';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Listening'>;
@@ -39,9 +41,15 @@ export default function ListeningScreen({ navigation }: Props) {
       } else {
         setTexts(data);
       }
-    } catch (error) {
-      Alert.alert('Hata', 'İçerikler yüklenemedi.');
-      navigation.goBack();
+    } catch (error: any) {
+      if (error.response?.status === 403 && error.response?.data?.quotaFull) {
+        Alert.alert('Bilgi', error.response.data.message || 'Tebrikler! Günlük hedefinizi tamamladınız.', [
+          { text: 'Tamam', onPress: () => navigation.goBack() }
+        ]);
+      } else {
+        Alert.alert('Hata', 'İçerikler yüklenemedi.');
+        navigation.goBack();
+      }
     } finally {
       setLoading(false);
     }
@@ -72,7 +80,14 @@ export default function ListeningScreen({ navigation }: Props) {
                 if (progRes.levelUpOccurred) {
                     Alert.alert('🎉 Seviye Atladınız!', `Tebrikler! Dinleme seviyeniz ${progRes.newLevel} oldu.`);
                     if (user.level) updateUser({ level: { ...user.level, listening: progRes.newLevel } });
+                } else if (progRes.levelUpBlocked) {
+                    Alert.alert('Bilgi', progRes.balanceWarning || 'Diğer modülleri geliştirmeniz gerekiyor.');
                 }
+                
+                updateUser({ 
+                  progress: { ...user.progress, listening: progRes.currentProgress },
+                  dailyQuotas: progRes.dailyQuotas
+                });
             } catch(e) { console.error(e); }
         }
 
@@ -89,9 +104,9 @@ export default function ListeningScreen({ navigation }: Props) {
     if (currentIndex < texts.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      Alert.alert('Tebrikler!', 'Günün dinleme hedefini tamamladınız.', [
-        { text: 'Ana Menüye Dön', onPress: () => navigation.goBack() }
-      ]);
+      // Liste bitti, yenisini yükle
+      setCurrentIndex(0);
+      loadTexts();
     }
   };
 
@@ -112,8 +127,12 @@ export default function ListeningScreen({ navigation }: Props) {
             <TouchableOpacity onPress={() => { Speech.stop(); navigation.goBack(); }}>
                 <Text style={styles.closeBtn}>✕</Text>
             </TouchableOpacity>
-            <Text style={styles.progressText}>{currentIndex + 1} / {texts.length}</Text>
         </View>
+
+        <ProgressBar 
+            currentLevel={user?.level?.listening || 'A1'} 
+            progress={user?.progress?.listening || 0} 
+        />
 
         <View style={styles.card}>
             <Text style={styles.levelBadge}>{user?.level?.listening} Seviyesi - Dikte Görevi</Text>

@@ -40,13 +40,23 @@ export const evaluateWriting = async (originalText: string, writtenText: string,
   return response.data.evaluation;
 };
 
+export interface ProgressResponse {
+  success: boolean;
+  levelUpOccurred: boolean;
+  newLevel: string;
+  currentProgress: number;
+  levelUpBlocked?: boolean;
+  balanceWarning?: string;
+  dailyQuotas?: any; // useUserStore handles the merge
+}
+
 export const submitProgress = async (
   uuid: string, 
   contentId: string, 
   moduleType: 'vocabulary' | 'reading' | 'writing' | 'listening', 
   isCorrect: boolean, 
   score?: number
-) => {
+): Promise<ProgressResponse> => {
   const response = await apiClient.post('/content/submit-progress', { uuid, contentId, moduleType, isCorrect, score });
   return response.data;
 };

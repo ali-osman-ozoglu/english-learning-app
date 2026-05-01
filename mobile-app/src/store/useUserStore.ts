@@ -14,7 +14,12 @@ export const useUserStore = create<UserState>((set) => ({
   isLoading: true, // Uygulama ilk açıldığında UUID kontrolü yapıldığı için true başlar
   setUser: (user) => set({ user, isLoading: false }),
   updateUser: (updates) => set((state) => ({ 
-      user: state.user ? { ...state.user, ...updates, level: { ...state.user.level, ...updates.level } } : null 
+      user: state.user ? { 
+          ...state.user, 
+          ...updates, 
+          level: { ...state.user.level, ...updates.level },
+          dailyQuotas: updates.dailyQuotas ? { ...state.user.dailyQuotas, ...updates.dailyQuotas } : state.user.dailyQuotas
+      } : null 
   })),
   setLoading: (status) => set({ isLoading: status }),
 }));
