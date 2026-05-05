@@ -4,9 +4,12 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { MaterialIcons } from '@expo/vector-icons';
+import { RouteProp } from '@react-navigation/native';
+import * as SecureStore from 'expo-secure-store';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'LanguageSelection'>;
+  route: RouteProp<RootStackParamList, 'LanguageSelection'>;
 };
 
 const LANGUAGES = [
@@ -17,15 +20,18 @@ const LANGUAGES = [
   { id: 'it', name: 'İtalyanca', available: false },
 ];
 
-export default function LanguageSelectionScreen({ navigation }: Props) {
+export default function LanguageSelectionScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const { fromOnboarding } = route.params || {};
 
-  const handleSelect = (langId: string) => {
+  const handleSelect = async (langId: string) => {
     if (langId === 'en') {
-      if (navigation.canGoBack()) {
+      if (fromOnboarding) {
+        navigation.navigate('Survey', { language: langId });
+      } else if (navigation.canGoBack()) {
         navigation.goBack();
       } else {
-        navigation.navigate('Survey');
+        navigation.navigate('Survey', { language: langId });
       }
     }
   };

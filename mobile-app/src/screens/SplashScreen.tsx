@@ -30,7 +30,7 @@ export default function SplashScreen() {
       }}>
         <Image 
           source={require('../../assets/logo.png')} 
-          style={{ width: width * 0.6, height: width * 0.6 }}
+          style={{ width: width * 0.8, height: width * 0.8 }}
           resizeMode="contain"
         />
       </Animated.View>

@@ -12,19 +12,22 @@ import ReadingScreen from '../screens/ReadingScreen';
 import WritingScreen from '../screens/WritingScreen';
 import ListeningScreen from '../screens/ListeningScreen';
 import SplashScreen from '../screens/SplashScreen';
+import WelcomeScreen from '../screens/WelcomeScreen';
 import LanguageSelectionScreen from '../screens/LanguageSelectionScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import { getOrCreateUUID } from '../utils/auth';
 import { registerDevice } from '../api/authApi';
 import { useUserStore } from '../store/useUserStore';
+import * as SecureStore from 'expo-secure-store';
 
 export type RootStackParamList = {
   Splash: undefined;
-  LanguageSelection: undefined;
+  Welcome: undefined;
+  LanguageSelection: { fromOnboarding?: boolean } | undefined;
   Home: undefined;
   Settings: undefined;
-  DeviceTransfer: undefined;
-  Survey: undefined;
+  DeviceTransfer: { fromOnboarding?: boolean } | undefined;
+  Survey: { language?: string } | undefined;
   SurveyResult: { evaluation: any };
   Vocabulary: undefined;
   Reading: undefined;
@@ -37,10 +40,13 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function AppNavigator() {
   const { user, isLoading, setLoading, setUser } = useUserStore();
   const [showSplash, setShowSplash] = React.useState(true);
+  const [hasSeenWelcome, setHasSeenWelcome] = React.useState<boolean | null>(null);
 
   useEffect(() => {
     const initApp = async () => {
       try {
+        const seen = await SecureStore.getItemAsync('hasSeenWelcome');
+        setHasSeenWelcome(seen === 'true');
         const uuid = await getOrCreateUUID();
         const user = await registerDevice(uuid);
         setUser(user);
@@ -65,17 +71,19 @@ export default function AppNavigator() {
 
   // İlk giriş kontrolü: Eğer seviye UNTESTED ise dil seçimine yönlendir
   const isFirstTime = user?.level?.vocabulary === 'UNTESTED';
+  const showWelcome = isFirstTime && !hasSeenWelcome;
 
   return (
     <NavigationContainer>
       <Stack.Navigator 
-        initialRouteName={isFirstTime ? 'LanguageSelection' : 'Home'}
+        initialRouteName={showWelcome ? 'Welcome' : (isFirstTime ? 'LanguageSelection' : 'Home')}
         screenOptions={{ 
           headerShown: false, 
           contentStyle: { backgroundColor: '#0f172a' },
           animation: 'fade_from_bottom'
         }}
       >
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="LanguageSelection" component={LanguageSelectionScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />

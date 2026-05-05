@@ -7,17 +7,55 @@ import { useUserStore } from '../store/useUserStore';
 import { generateTransferCode, transferDevice } from '../api/authApi';
 import { updateUUID } from '../utils/auth';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
+
+import { RouteProp } from '@react-navigation/native';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'DeviceTransfer'>;
+  route: RouteProp<RootStackParamList, 'DeviceTransfer'>;
 };
 
-export default function DeviceTransferScreen({ navigation }: Props) {
+export default function DeviceTransferScreen({ navigation, route }: Props) {
   const { user, setUser } = useUserStore();
   const [code, setCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
+  const { fromOnboarding } = route.params || {};
+
+  useEffect(() => {
+    if (user?.transferCode && user?.transferCodeExpiresAt) {
+      const expiresAt = new Date(user.transferCodeExpiresAt).getTime();
+      
+      const updateTimer = () => {
+        const now = Date.now();
+        if (expiresAt > now) {
+          setGeneratedCode(user.transferCode);
+          const diff = expiresAt - now;
+          const mins = Math.floor(diff / 60000);
+          const secs = Math.floor((diff % 60000) / 1000);
+          setTimeLeft(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
+        } else {
+          setGeneratedCode(null);
+          setTimeLeft('');
+          setUser({
+            ...user,
+            transferCode: undefined,
+            transferCodeExpiresAt: undefined,
+          });
+        }
+      };
+
+      updateTimer();
+      const interval = setInterval(updateTimer, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setGeneratedCode(null);
+      setTimeLeft('');
+    }
+  }, [user]);
 
   const handleGenerateCode = async () => {
     if (!user?.uuid) return;
@@ -25,6 +63,11 @@ export default function DeviceTransferScreen({ navigation }: Props) {
     try {
       const res = await generateTransferCode(user.uuid);
       setGeneratedCode(res.transferCode);
+      setUser({
+        ...user,
+        transferCode: res.transferCode,
+        transferCodeExpiresAt: res.expiresAt,
+      });
     } catch (error) {
       Alert.alert('Hata', 'Transfer kodu oluşturulamadı.');
     } finally {
@@ -42,7 +85,20 @@ export default function DeviceTransferScreen({ navigation }: Props) {
       await updateUUID(updatedUser.uuid);
       setUser(updatedUser);
       Alert.alert('Başarılı!', 'Eski verileriniz bu cihaza başarıyla aktarıldı.', [
-        { text: 'Tamam', onPress: () => navigation.goBack() }
+        { 
+          text: 'Tamam', 
+          onPress: async () => {
+            if (fromOnboarding) {
+              await SecureStore.setItemAsync('hasSeenWelcome', 'true');
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Home' }],
+              });
+            } else {
+              navigation.goBack();
+            }
+          }
+        }
       ]);
     } catch (error: any) {
       Alert.alert('Hata', error.response?.data?.message || 'Transfer başarısız. Kodu kontrol edin.');
@@ -94,7 +150,7 @@ export default function DeviceTransferScreen({ navigation }: Props) {
           {generatedCode ? (
             <View style={styles.codeContainer}>
               <Text style={styles.codeText}>{generatedCode}</Text>
-              <Text style={styles.codeWarning}>Bu kod 10 dakika geçerlidir.</Text>
+              <Text style={styles.codeWarning}>Bu kod geçerli olduğu süre: {timeLeft || '0:00'}</Text>
             </View>
           ) : (
             <TouchableOpacity style={styles.outlineButton} onPress={handleGenerateCode} disabled={loading}>

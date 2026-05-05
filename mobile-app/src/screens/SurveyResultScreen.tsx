@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import * as SecureStore from 'expo-secure-store';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'SurveyResult'>;
@@ -12,6 +13,10 @@ type Props = {
 
 export default function SurveyResultScreen({ navigation, route }: Props) {
   const { evaluation } = route.params;
+
+  useEffect(() => {
+    SecureStore.setItemAsync('hasSeenWelcome', 'true');
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea}>

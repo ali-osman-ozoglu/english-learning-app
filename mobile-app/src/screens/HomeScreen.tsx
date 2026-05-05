@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Image } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useUserStore } from '../store/useUserStore';
@@ -59,7 +59,11 @@ export default function HomeScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Text style={styles.appName}>{appName}</Text>
+        <Image 
+          source={require('../../assets/myEnglish.png')} 
+          style={styles.logo} 
+          resizeMode="contain" 
+        />
         <TouchableOpacity 
           style={styles.settingsButton}
           onPress={() => navigation.navigate('Settings')}
@@ -101,7 +105,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 20,
   },
-  appName: { color: '#38bdf8', fontSize: 20, fontWeight: '900', letterSpacing: 1 },
+  logo: { width: 170, height: 48 },
   settingsButton: {
     padding: 4,
   },
