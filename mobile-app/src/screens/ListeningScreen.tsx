@@ -185,7 +185,7 @@ export default function ListeningScreen({ navigation }: Props) {
                     disabled={!writtenText.trim()}
                     activeOpacity={0.8}
                 >
-                    <Text style={styles.submitButtonText}>Değerlendir (AI)</Text>
+                    <Text style={styles.submitButtonText}>Yapay Zeka ile Doğrula</Text>
                 </TouchableOpacity>
             )}
         </View>

@@ -34,41 +34,46 @@ class AIRotator {
         for (let i = 0; i < this.keys.length; i++) {
             const key = this.getNextKey();
             
-            // Placeholder anahtarları atla
             if (!key || !key.startsWith('AIza')) {
-                console.log(`[AI] Geçersiz anahtar atlandı (Index: ${this.currentIndex})`);
                 continue;
             }
 
-            try {
-                console.log(`[AI] Anahtar deneniyor (Index: ${this.currentIndex}, Key: ${key.substring(0, 8)}...)`);
-                const genAI = new GoogleGenAI({ apiKey: key }); // Varsayılana bırak
-                const response = await genAI.models.generateContent({
-                    model: "gemini-2.0-flash",
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        responseMimeType: mimeType,
-                    },
-                });
+            // Her bir anahtar için birincil ve yedek modelleri dene
+            const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash"];
+            
+            for (const modelName of modelsToTry) {
+                try {
+                    console.log(`[AI] Deneniyor: Key Index ${this.currentIndex}, Model: ${modelName}`);
+                    const genAI = new GoogleGenAI({ apiKey: key });
+                    const response = await genAI.models.generateContent({
+                        model: modelName,
+                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            responseMimeType: mimeType,
+                        },
+                    });
 
-                return response.text;
-            } catch (error) {
-                lastError = error;
-                const statusCode = error.status || (error.response ? error.response.status : null);
-                console.error(`[AI] Anahtar hatası (Index: ${this.currentIndex}, Status: ${statusCode}):`, error.message);
-                console.log('Hata Detayı:', JSON.stringify(error));
-                
-                // Eğer hata 429, 503 veya 404 ise diğerini dene
-                if (statusCode === 429 || statusCode === 503 || statusCode === 404 || error.message?.includes('429') || error.message?.includes('503')) {
-                    console.log(`[AI] Kota/Yoğunluk hatası, 1 saniye bekleniyor...`);
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // 1 saniye bekle
-                    continue;
-                } else {
-                    break;
+                    console.log(`[AI] Yanıt objesi (Keys):`, Object.keys(response));
+                    if (response && response.text) {
+                        return response.text;
+                    }
+                } catch (error) {
+                    lastError = error;
+                    const statusCode = error.status || (error.response ? error.response.status : null);
+                    console.error(`[AI] Hata (Model: ${modelName}, Status: ${statusCode}):`, error.message);
+                    
+                    // Eğer hata 404 ise, bu model desteklenmiyor demektir; AYNI anahtar için sıradaki modeli dene
+                    if (statusCode === 404) continue;
+                    
+                    // Eğer hata 429 veya 503 ise, kısa süre bekle ve SIRADAKİ ANAHTAR'a geç
+                    if (statusCode === 429 || statusCode === 503) {
+                        console.log(`[AI] Kota/Yoğunluk, bir sonraki anahtara geçiliyor...`);
+                        break; // İç döngüden çık, dış döngüdeki bir sonraki anahtara geçer
+                    }
                 }
             }
         }
-        throw lastError || new Error('Tüm API anahtarları denendi ama başarılı olunamadı.');
+        throw lastError || new Error('Tüm API anahtarları ve modeller denendi ama başarılı olunamadı.');
     }
 }
 

@@ -94,7 +94,7 @@ export default function WritingScreen({ navigation }: Props) {
     if (currentIndex < texts.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      // Liste bitti, yenisini yükle
+      // Liste bitti, yenisini yükle (Kota dolana kadar)
       setCurrentIndex(0);
       loadTexts();
     }
@@ -173,7 +173,7 @@ export default function WritingScreen({ navigation }: Props) {
                     disabled={!writtenText.trim()}
                     activeOpacity={0.8}
                 >
-                    <Text style={styles.submitButtonText}>AI Öğretmene Gönder</Text>
+                    <Text style={styles.submitButtonText}>Yapay Zeka ile Doğrula</Text>
                 </TouchableOpacity>
             )}
         </View>

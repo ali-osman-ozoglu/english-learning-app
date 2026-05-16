@@ -1,16 +1,68 @@
 const express = require('express');
 const router = express.Router();
 const Content = require('../models/Content');
+const AdminUser = require('../models/AdminUser');
+const jwt = require('jsonwebtoken');
 
-// Basit güvenlik: Şimdilik Header üzerinden basit bir kontrol yapıyoruz.
-// Gerçek ortamda JWT kullanılabilir, ancak MVP için yeterlidir.
+// Gelişmiş Güvenlik: JWT üzerinden yetki kontrolü
 const requireAdmin = (req, res, next) => {
-    const secret = req.headers['x-admin-secret'];
-    if (secret !== 'super-secret-admin-key') {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const token = req.headers['x-admin-token']; // Client'tan gelen JWT
+    
+    if (!token) {
+        return res.status(401).json({ success: false, message: 'Oturum açılmamış.' });
     }
-    next();
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super-secret-jwt-key');
+        req.admin = decoded;
+
+        // Gelecekteki yetki kontrolleri burada yapılabilir.
+        // Şimdilik sadece geçerli bir tokan olması yeterli.
+        // Örn: if (req.admin.role > 3) return res.status(403)...
+
+        next();
+    } catch (error) {
+        return res.status(401).json({ success: false, message: 'Oturum süresi dolmuş veya geçersiz.' });
+    }
 };
+
+// @route   POST /api/admin/login
+// @desc    Admin girişi yapar ve JWT tokanı döner
+router.post('/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({ success: false, message: 'Kullanıcı adı ve şifre gereklidir.' });
+        }
+
+        const user = await AdminUser.findOne({ username });
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'Geçersiz kullanıcı adı veya şifre.' });
+        }
+
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: 'Geçersiz kullanıcı adı veya şifre.' });
+        }
+
+        // JWT Oluştur
+        const token = jwt.sign(
+            { id: user._id, username: user.username, role: user.role },
+            process.env.JWT_SECRET || 'super-secret-jwt-key',
+            { expiresIn: '24h' }
+        );
+
+        res.json({ 
+            success: true, 
+            token,
+            role: user.role,
+            username: user.username
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
 
 // @route   GET /api/admin/content
 // @desc    Tüm içerikleri getirir (veya type/level filtresiyle)
@@ -33,7 +85,7 @@ router.get('/content', requireAdmin, async (req, res) => {
 router.post('/content/bulk', requireAdmin, async (req, res) => {
     try {
         const items = req.body; // Gelen JSON array
-        
+
         if (!Array.isArray(items)) {
             return res.status(400).json({ success: false, message: 'Geçersiz format, JSON dizisi bekleniyor.' });
         }
@@ -41,11 +93,11 @@ router.post('/content/bulk', requireAdmin, async (req, res) => {
         const newContents = items.map(item => {
             // Kullanıcının formatı: { id: 1, value: { en: "...", tr: "...", level: "A1" } }
             // Veya direkt format: { englishText: "...", turkishTranslation: "...", level: "A1", type: "word" }
-            
+
             const enText = (item.value?.en || item.englishText || '').trim();
             const trText = (item.value?.tr || item.turkishTranslation || '').trim();
             let itemLevel = (item.value?.level || item.level || 'A1').trim();
-            
+
             // Eğer veride kazara boşluk veya geçersiz seviye (örn: A3) varsa A1'e çek
             const validLevels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
             if (!validLevels.includes(itemLevel)) itemLevel = 'A1';
@@ -91,7 +143,7 @@ router.post('/content/bulk', requireAdmin, async (req, res) => {
 router.post('/content', requireAdmin, async (req, res) => {
     try {
         const { type, level, englishText, turkishTranslation, wordType, priority } = req.body;
-        
+
         const translationsArray = turkishTranslation.split(',').map(s => s.trim()).filter(s => s.length > 0);
 
         const newContent = new Content({
@@ -110,8 +162,8 @@ router.post('/content', requireAdmin, async (req, res) => {
 router.put('/content/:id', requireAdmin, async (req, res) => {
     try {
         const updatedContent = await Content.findByIdAndUpdate(
-            req.params.id, 
-            req.body, 
+            req.params.id,
+            req.body,
             { new: true }
         );
         res.json({ success: true, content: updatedContent });

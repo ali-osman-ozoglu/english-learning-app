@@ -1,15 +1,40 @@
 import axios from 'axios';
 
-// Geliştirme aşamasında localhost, canlıya alırken hostinger URL'si
+// Geliştirme aşamasında localhost, canlıya alırken Hostinger URL'si kullanılacak
 const API_URL = 'http://localhost:5000/api/admin';
+
+// Sayfa yenilense bile tokanı korumak için localStorage kullanıyoruz
+const getStoredToken = () => localStorage.getItem('adminToken') || '';
 
 export const api = axios.create({
     baseURL: API_URL,
     headers: {
-        'Content-Type': 'application/json',
-        'x-admin-secret': 'super-secret-admin-key' // Basit güvenlik önlemi
+        'Content-Type': 'application/json'
     }
 });
+
+// Her istekte güncel token'ı ekle
+api.interceptors.request.use((config) => {
+    const token = getStoredToken();
+    if (token) {
+        config.headers['x-admin-token'] = token;
+    }
+    return config;
+});
+
+export const loginAdmin = async (username: string, password: string) => {
+    const res = await api.post('/login', { username, password });
+    if (res.data.success) {
+        localStorage.setItem('adminToken', res.data.token);
+        localStorage.setItem('adminRole', res.data.role.toString());
+    }
+    return res.data;
+};
+
+export const logoutAdmin = () => {
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminRole');
+};
 
 export const getContents = async () => {
     const res = await api.get('/content');

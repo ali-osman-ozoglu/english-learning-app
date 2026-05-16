@@ -14,9 +14,16 @@ router.post('/register', async (req, res) => {
     }
 
     let user = await User.findOne({ uuid });
+    const crypto = require('crypto');
 
     if (!user) {
-      user = new User({ uuid });
+      // Yeni kullanıcı için güvenli bir tokan oluştur
+      const authToken = crypto.randomBytes(32).toString('hex');
+      user = new User({ uuid, authToken });
+      await user.save();
+    } else if (!user.authToken) {
+      // Eğer eski bir kullanıcıysa ve tokanı yoksa oluştur (Geriye dönük uyumluluk)
+      user.authToken = crypto.randomBytes(32).toString('hex');
       await user.save();
     }
 
@@ -80,17 +87,17 @@ router.post('/transfer-device', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid or expired transfer code' });
     }
 
-    // Change the UUID to the new device's UUID
+    // Change the UUID to the new device's UUID and rotate authToken
+    const crypto = require('crypto');
     oldUser.uuid = newUuid;
+    oldUser.authToken = crypto.randomBytes(32).toString('hex');
     oldUser.transferCode = null;
     oldUser.transferCodeExpiresAt = null;
     
     // Save updated user
     await oldUser.save();
 
-    // If there was a temporary user created for this newUuid, we might want to delete it to avoid conflicts
-    // but the above save will fail if newUuid already exists.
-    // So we should handle that:
+    // If there was a temporary user created for this newUuid, delete it
     const existingTempUser = await User.findOne({ uuid: newUuid });
     if (existingTempUser && existingTempUser._id.toString() !== oldUser._id.toString()) {
         await User.deleteOne({ _id: existingTempUser._id });
@@ -104,7 +111,9 @@ router.post('/transfer-device', async (req, res) => {
        await User.deleteOne({ uuid: newUuid });
        const oldUser = await User.findOne({ transferCode });
        if(oldUser) {
+          const crypto = require('crypto');
           oldUser.uuid = newUuid;
+          oldUser.authToken = crypto.randomBytes(32).toString('hex');
           oldUser.transferCode = null;
           oldUser.transferCodeExpiresAt = null;
           await oldUser.save();

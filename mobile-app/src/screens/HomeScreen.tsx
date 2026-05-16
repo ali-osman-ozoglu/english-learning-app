@@ -7,6 +7,7 @@ import { useUserStore } from '../store/useUserStore';
 
 import { MaterialIcons } from '@expo/vector-icons';
 
+// Ekran Parametreleri
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
 };
@@ -14,6 +15,7 @@ type Props = {
 export default function HomeScreen({ navigation }: Props) {
   const { user } = useUserStore();
 
+  // Öğrenme modülü kartlarını oluşturan yardımcı fonksiyon
   const renderModuleCard = (
     id: 'vocabulary' | 'reading' | 'writing' | 'listening',
     title: string,
@@ -47,6 +49,7 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   const targetLanguage = user?.targetLanguage || 'en';
+  // Uygulama isimleri (Hedef dile göre logoda görünecek isimler)
   const appNames: Record<string, string> = {
     en: 'myEnglish',
     es: 'mySpanish',
@@ -74,18 +77,13 @@ export default function HomeScreen({ navigation }: Props) {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
-          <Text style={styles.title}>Hoş Geldiniz</Text>
-          <Text style={styles.subtitle}>
-            Dil öğrenme serüveninizde yapay zeka yanınızda. Bugün hangi becerinizi geliştirmek istersiniz?
-          </Text>
-          
           <View style={styles.modulesContainer}>
             <Text style={styles.sectionTitle}>Öğrenme Modülleri</Text>
             
-            {renderModuleCard('vocabulary', 'Kelime Kartları', 'Seviyenize uygun kelimeler', '📚', 'Vocabulary', 'rgba(56, 189, 248, 0.15)')}
-            {renderModuleCard('reading', 'Sesli Okuma', 'Telaffuz ölçümü', '🎤', 'Reading', 'rgba(16, 185, 129, 0.15)')}
-            {renderModuleCard('writing', 'Çeviri & Yazma', 'AI öğretmen geri bildirimi', '✍️', 'Writing', 'rgba(168, 85, 247, 0.15)')}
-            {renderModuleCard('listening', 'Dinleme & Dikte', 'Duyduğunuzu yazın', '🎧', 'Listening', 'rgba(236, 72, 153, 0.15)')}
+            {renderModuleCard('vocabulary', 'Kelime Hazinesi', 'Yeni kelimeleri keşfet ve pekiştir', '📚', 'Vocabulary', 'rgba(56, 189, 248, 0.15)')}
+            {renderModuleCard('reading', 'Telaffuz Analizi', 'Yapay zeka ile telaffuzunu geliştir', '🎤', 'Reading', 'rgba(16, 185, 129, 0.15)')}
+            {renderModuleCard('writing', 'Akıllı Yazım Rehberi', 'Yaz, çevir, yapay zeka ile mükemmeli yakala', '✍️', 'Writing', 'rgba(168, 85, 247, 0.15)')}
+            {renderModuleCard('listening', 'Sesten Metne', 'Dinlediğini yazarak anlama ve odaklanma hızını yapay zeka ile ölç', '🎧', 'Listening', 'rgba(236, 72, 153, 0.15)')}
           </View>
         </View>
       </ScrollView>

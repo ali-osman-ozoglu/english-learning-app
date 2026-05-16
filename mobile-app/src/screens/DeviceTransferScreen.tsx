@@ -83,6 +83,13 @@ export default function DeviceTransferScreen({ navigation, route }: Props) {
       const updatedUser = await transferDevice(user.uuid, code);
       // Başarılı olursa, yereldeki UUID'yi de sunucudan dönen asıl UUID ile güncelle
       await updateUUID(updatedUser.uuid);
+      
+      // Yeni güvenlik tokanını kaydet
+      if (updatedUser.authToken) {
+        const { saveAuthToken } = require('../utils/auth');
+        await saveAuthToken(updatedUser.authToken);
+      }
+
       setUser(updatedUser);
       Alert.alert('Başarılı!', 'Eski verileriniz bu cihaza başarıyla aktarıldı.', [
         { 

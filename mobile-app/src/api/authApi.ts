@@ -3,6 +3,7 @@ import { apiClient } from './apiClient';
 export interface UserResponse {
   uuid: string;
   targetLanguage?: string;
+  authToken?: string;
   transferCode?: string;
   transferCodeExpiresAt?: string;
   level: {

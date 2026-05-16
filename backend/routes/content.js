@@ -4,6 +4,14 @@ const Content = require('../models/Content');
 const User = require('../models/User');
 const UserProgress = require('../models/UserProgress');
 const { aiRotator } = require('../utils/aiClient');
+const authMiddleware = require('../middleware/auth');
+
+// NLP and String comparison packages for Fallback
+const winkNLP = require('wink-nlp');
+const model = require('wink-eng-lite-web-model');
+const nlp = winkNLP(model);
+const its = nlp.its;
+const levenshtein = require('fast-levenshtein');
 
 // Yardımcı Fonksiyonlar
 const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -58,7 +66,7 @@ const checkLevelBalance = (user, targetModule, targetLevel) => {
 // @route   GET /api/content/vocabulary
 // @desc    Kullanıcının seviyesine uygun ve önceliği yüksek kelimeleri getirir
 // @access  Public
-router.get('/vocabulary', async (req, res) => {
+router.get('/vocabulary', authMiddleware, async (req, res) => {
   try {
     const { uuid } = req.query;
     
@@ -159,7 +167,7 @@ router.get('/vocabulary', async (req, res) => {
 // @route   GET /api/content/reading
 // @desc    Kullanıcının seviyesine uygun okuma metinlerini getirir
 // @access  Public
-router.get('/reading', async (req, res) => {
+router.get('/reading', authMiddleware, async (req, res) => {
   try {
     const { uuid, module: requestedModule } = req.query;
     if (!uuid) return res.status(400).json({ success: false, message: 'UUID required' });
@@ -219,8 +227,9 @@ router.get('/reading', async (req, res) => {
 // Yardımcı fonksiyon: AI cevabından JSON'u temizleyip parse eder
 const safeJsonParse = (text) => {
     try {
-        // Eğer AI cevabı ```json ... ``` içinde verdiyse temizle
-        const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        // JSON bloğunu ayıkla (Markdown veya ekstra metinleri temizlemek için)
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const cleaned = jsonMatch ? jsonMatch[0] : text;
         return JSON.parse(cleaned);
     } catch (e) {
         console.error('JSON Parse Error:', e, 'Raw Text:', text);
@@ -231,7 +240,7 @@ const safeJsonParse = (text) => {
 // @route   POST /api/content/evaluate-reading
 // @desc    Kullanıcının okuduğu metni Gemini API ile karşılaştırır
 // @access  Public
-router.post('/evaluate-reading', async (req, res) => {
+router.post('/evaluate-reading', authMiddleware, async (req, res) => {
   try {
     const { originalText, spokenText } = req.body;
 
@@ -282,7 +291,7 @@ router.post('/evaluate-reading', async (req, res) => {
 // @route   POST /api/content/evaluate-writing
 // @desc    Kullanıcının yazdığı metni Gemini API ile analiz eder
 // @access  Public
-router.post('/evaluate-writing', async (req, res) => {
+router.post('/evaluate-writing', authMiddleware, async (req, res) => {
   try {
     const { originalText, writtenText, mode } = req.body;
     // mode: 'translation' (Turkish to English) or 'dictation' (Listening to English)
@@ -316,12 +325,52 @@ router.post('/evaluate-writing', async (req, res) => {
         console.error('AI Eval Error (Writing):', aiErr);
     }
 
-    // Writing Fallback
+    // Fallback Logic
+    let score = 0;
+    let feedback = "";
+    
+    if (mode === 'dictation') {
+        // Levenshtein Uzaklığı (Karakter bazlı hassas benzerlik)
+        const distance = levenshtein.get(originalText.toLowerCase().trim(), writtenText.toLowerCase().trim());
+        const maxLength = Math.max(originalText.length, writtenText.length);
+        score = maxLength === 0 ? 0 : Math.max(0, Math.round(((maxLength - distance) / maxLength) * 100));
+        
+        if (score >= 90) feedback = "Kusursuza yakın (Yerel Analiz).";
+        else if (score >= 70) feedback = "Ufak harf veya kelime hataları var (Yerel Analiz).";
+        else feedback = "Daha fazla pratik yapmalısın (Yerel Analiz).";
+
+    } else {
+        // Çeviri / Yazma Modu: Wink NLP ile Lemmatization ve Jaccard Benzerliği
+        const docOriginal = nlp.readDoc(originalText.toLowerCase());
+        const docWritten = nlp.readDoc(writtenText.toLowerCase());
+        
+        // Sadece kelimeleri alıp köklerine (lemma) ayırıyoruz. Böylece zaman ekleri önemsizleşiyor.
+        const lemmasOriginal = new Set(docOriginal.tokens().filter(t => t.out(its.type) === 'word').out(its.lemma));
+        const lemmasWritten = new Set(docWritten.tokens().filter(t => t.out(its.type) === 'word').out(its.lemma));
+        
+        // Jaccard Benzerlik Hesaplaması
+        const intersection = new Set([...lemmasOriginal].filter(x => lemmasWritten.has(x)));
+        const union = new Set([...lemmasOriginal, ...lemmasWritten]);
+        
+        if (union.size === 0) {
+            score = 0;
+        } else {
+            score = Math.round((intersection.size / union.size) * 100);
+        }
+        
+        // Birebir eşleşme durumunda skoru 100'e çekelim
+        if (writtenText.toLowerCase().trim() === originalText.toLowerCase().trim()) score = 100;
+
+        if (score >= 80) feedback = "Anlamsal olarak çok başarılı (Yerel NLP Analizi).";
+        else if (score >= 50) feedback = "Anlamı kısmen yakaladın (Yerel NLP Analizi).";
+        else feedback = "Cümlenin anlamı hedeften oldukça uzak (Yerel NLP Analizi).";
+    }
+
     res.json({ 
         success: true, 
         evaluation: { 
-            score: writtenText.toLowerCase().trim() === originalText.toLowerCase().trim() ? 100 : 50,
-            feedback: "Google Gemini yapay zeka günlük kota sınırına ulaşıldı. Şu an detaylı analiz yapılamıyor ancak basit kelime doğrulaması yapıldı ve ilerlemeniz kaydedildi.",
+            score: score,
+            feedback: "Yapay zeka kotası aşıldı. " + feedback,
             correctedText: originalText,
             isFallback: true
         } 
@@ -336,7 +385,7 @@ router.post('/evaluate-writing', async (req, res) => {
 // @route   POST /api/content/submit-progress
 // @desc    Kullanıcının verdiği cevaba göre ilerlemesini ve seviyesini günceller (Spaced Repetition & Level Up)
 // @access  Public
-router.post('/submit-progress', async (req, res) => {
+router.post('/submit-progress', authMiddleware, async (req, res) => {
   try {
     const { uuid, contentId, moduleType, isCorrect, score } = req.body;
     

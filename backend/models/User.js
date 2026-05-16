@@ -7,6 +7,11 @@ const userSchema = new mongoose.Schema({
     unique: true,
     index: true
   },
+  authToken: { 
+    type: String, 
+    default: null,
+    index: true 
+  },
   transferCode: { 
     type: String, 
     default: null,
@@ -34,10 +39,10 @@ const userSchema = new mongoose.Schema({
   dailyQuotas: {
     date: { type: String, default: "" }, // YYYY-MM-DD
     limits: {
-      vocabulary: { type: Number, default: 0 },
-      reading: { type: Number, default: 0 },
-      writing: { type: Number, default: 0 },
-      listening: { type: Number, default: 0 }
+      vocabulary: { type: Number, default: 5 },
+      reading: { type: Number, default: 5 },
+      writing: { type: Number, default: 5 },
+      listening: { type: Number, default: 5 }
     },
     counts: {
       vocabulary: { type: Number, default: 0 },
@@ -45,6 +50,12 @@ const userSchema = new mongoose.Schema({
       writing: { type: Number, default: 0 },
       listening: { type: Number, default: 0 }
     }
+  },
+  // Demografik bilgiler (Anketten toplanan veriler)
+  demographics: {
+    school: { type: String, default: "" },
+    department: { type: String, default: "" },
+    profession: { type: String, default: "" }
   }
 }, { timestamps: true });
 

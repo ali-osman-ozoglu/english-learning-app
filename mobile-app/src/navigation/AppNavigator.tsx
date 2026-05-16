@@ -49,6 +49,13 @@ export default function AppNavigator() {
         setHasSeenWelcome(seen === 'true');
         const uuid = await getOrCreateUUID();
         const user = await registerDevice(uuid);
+        
+        // Sunucudan gelen güvenlik tokanını kaydet
+        if (user.authToken) {
+          const { saveAuthToken } = require('../utils/auth');
+          await saveAuthToken(user.authToken);
+        }
+
         setUser(user);
         
         // Splash ekranını 2 saniye göster

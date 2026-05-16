@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { getContents, createContent, bulkCreateContent, deleteContent, deleteAllContent } from './api';
+import { getContents, createContent, bulkCreateContent, deleteContent, deleteAllContent, loginAdmin, logoutAdmin } from './api';
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('adminToken'));
+  const [adminRole, setAdminRole] = useState(localStorage.getItem('adminRole') || '');
+  const [username, setUsername] = useState('');
+  // Şifreyi state yerine ref ile tutuyoruz (Inspector'da value olarak gözükmemesi için)
+  const passwordRef = React.useRef<HTMLInputElement>(null);
+  
   const [contents, setContents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Form State
+  // Form Durumları
   const [type, setType] = useState('word');
   const [level, setLevel] = useState('A1');
   const [englishText, setEnglishText] = useState('');
@@ -13,20 +19,49 @@ function App() {
   const [wordType, setWordType] = useState('');
   const [priority, setPriority] = useState(1);
 
-  // Bulk Import State
+  // Toplu Yükleme Durumu
   const [bulkJson, setBulkJson] = useState('');
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isLoggedIn) {
+      fetchData();
+    }
+  }, [isLoggedIn]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const password = passwordRef.current?.value || '';
+    try {
+      const res = await loginAdmin(username, password);
+      setIsLoggedIn(true);
+      setAdminRole(res.role.toString());
+      // Alanları temizle
+      setUsername('');
+      if (passwordRef.current) passwordRef.current.value = '';
+    } catch (error: any) {
+      alert('Giriş başarısız: ' + (error?.response?.data?.message || 'Şifre hatalı.'));
+    }
+  };
+
+  const handleLogout = () => {
+    logoutAdmin();
+    setIsLoggedIn(false);
+    // Çıkış yapıldığında form alanlarını sıfırla
+    setUsername('');
+    if (passwordRef.current) passwordRef.current.value = '';
+  };
 
   const fetchData = async () => {
     try {
       const data = await getContents();
       setContents(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Sunucuya bağlanılamadı. Backend çalışıyor mu? (cd backend && npm start)');
+      if (error?.response?.status === 401) {
+        handleLogout();
+      } else {
+        alert('Veriler alınamadı. Lütfen bağlantınızı kontrol edin.');
+      }
     } finally {
       setLoading(false);
     }
@@ -97,11 +132,54 @@ function App() {
     }
   };
 
+  if (!isLoggedIn) {
+    return (
+      <div className="login-screen">
+        <div className="login-box glass-container">
+          <div className="header">
+            <h1>Admin Girişi</h1>
+            <p style={{color: '#94a3b8'}}>Devam etmek için kimliğinizi doğrulayın</p>
+          </div>
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label>Kullanıcı Adı</label>
+              <input 
+                type="text" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                placeholder="admin"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Şifre</label>
+              <input 
+                type="password" 
+                ref={passwordRef}
+                placeholder="••••••••"
+                required
+              />
+            </div>
+            <button type="submit" style={{marginTop: '1rem'}}>Giriş Yap</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="glass-container">
-      <div className="header">
-        <h1>Admin Paneli</h1>
-        <div style={{ color: '#94a3b8', fontSize: '1.1rem' }}>İngilizce İçerik Yönetimi</div>
+      <div className="header" style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+        <div>
+          <h1>Admin Paneli</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
+            <div style={{ color: '#94a3b8', fontSize: '1.1rem' }}>İngilizce İçerik Yönetimi</div>
+            <span className="badge" style={{ backgroundColor: '#1e293b', color: '#38bdf8', border: '1px solid #38bdf8' }}>
+              Yetki Seviyesi: {adminRole}
+            </span>
+          </div>
+        </div>
+        <button onClick={handleLogout} className="danger" style={{padding: '0.6rem 1.2rem', width: 'auto'}}>Çıkış Yap</button>
       </div>
 
       <form onSubmit={handleSubmit} className="form-grid">

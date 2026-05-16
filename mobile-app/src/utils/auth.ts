@@ -26,6 +26,29 @@ export const getOrCreateUUID = async (): Promise<string> => {
 };
 
 /**
+ * API güvenliği için sunucudan gelen authToken'u kaydeder.
+ */
+export const saveAuthToken = async (token: string): Promise<void> => {
+  try {
+    await SecureStore.setItemAsync('api_auth_token', token);
+  } catch (error) {
+    console.error('AuthToken kaydedilirken hata:', error);
+  }
+};
+
+/**
+ * Kayıtlı authToken'u getirir.
+ */
+export const getAuthToken = async (): Promise<string | null> => {
+  try {
+    return await SecureStore.getItemAsync('api_auth_token');
+  } catch (error) {
+    console.error('AuthToken okunurken hata:', error);
+    return null;
+  }
+};
+
+/**
  * "Cihazımı Değiştir" işlemi başarıyla sonuçlandığında eski UUID'yi yenisiyle günceller.
  */
 export const updateUUID = async (newUuid: string): Promise<void> => {
