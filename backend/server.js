@@ -24,6 +24,15 @@ app.use('/api/admin', adminRoutes);
 // Health Check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'Backend is running smoothly' }));
 
+// Admin Panel Production Static Files Serve
+const path = require('path');
+app.use(express.static(path.join(__dirname, '../admin-panel/dist')));
+
+// React Router Catch-all (API istekleri hariç her şeyi React'e yönlendir)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../admin-panel/dist/index.html'));
+});
+
 // Server & DB Setup
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/english-learning-app';

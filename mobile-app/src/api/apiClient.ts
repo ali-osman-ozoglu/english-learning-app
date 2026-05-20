@@ -5,7 +5,7 @@ import axios from 'axios';
 // Canlıya alırken Hostinger URL'si ile değiştirilecek.
 import { getAuthToken } from '../utils/auth';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://mylanguage.site/api';
 
 export const apiClient = axios.create({
   baseURL: API_URL,

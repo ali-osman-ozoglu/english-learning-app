@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-// Geliştirme aşamasında localhost, canlıya alırken Hostinger URL'si kullanılacak
-const API_URL = 'http://localhost:5000/api/admin';
+const API_URL = 'https://mylanguage.site/api/admin';
 
 // Sayfa yenilense bile tokanı korumak için localStorage kullanıyoruz
 const getStoredToken = () => localStorage.getItem('adminToken') || '';
