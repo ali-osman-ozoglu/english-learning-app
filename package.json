@@ -1,0 +1,9 @@
+{
+  "name": "english-learning-app",
+  "version": "1.0.0",
+  "description": "Root package.json to help Hostinger detect the correct root directory",
+  "scripts": {
+    "start": "cd backend && node server.js",
+    "install": "cd backend && npm install"
+  }
+}
