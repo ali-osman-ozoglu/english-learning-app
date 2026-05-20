@@ -37,12 +37,15 @@ app.get('*', (req, res) => {
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/english-learning-app';
 
+// Start the server immediately so Hostinger health check passes
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+// Connect to MongoDB in the background
 mongoose.connect(MONGO_URI)
   .then(() => {
-    console.log('MongoDB Connected');
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
+    console.log('MongoDB Connected successfully');
   })
   .catch(err => {
     console.error('MongoDB connection error:', err);
