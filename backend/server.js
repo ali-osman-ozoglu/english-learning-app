@@ -29,8 +29,13 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, '../admin-panel/dist')));
 
 // React Router Catch-all (API istekleri hariç her şeyi React'e yönlendir)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../admin-panel/dist/index.html'));
+app.use((req, res) => {
+  const indexPath = path.join(__dirname, '../admin-panel/dist/index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.status(200).json({ status: 'ok', message: 'Backend API is running.' });
+    }
+  });
 });
 
 // Server & DB Setup
