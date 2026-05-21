@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Sparkles, Brain, Mic, Download, ShieldCheck, FileText, Lock } from 'lucide-react';
+import { Brain, Mic, Download, ShieldCheck, FileText, Lock } from 'lucide-react';
 import './LandingPage.css';
 
 const LandingPage = () => {
@@ -18,13 +18,13 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="landing-container">
+    <div className="landing-container" style={{ overflowX: 'hidden', margin: '-2rem', width: 'calc(100% + 4rem)', minHeight: '100vh' }}>
       {/* Navbar */}
       <nav className="navbar glass-nav">
-        <div className="nav-brand">
-          <Sparkles className="brand-icon" />
+        <a href="#" className="nav-brand" style={{ textDecoration: 'none' }}>
+          <img src="/logo.png" alt="myLanguage Logo" className="brand-icon" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
           <span className="brand-name">myLanguage</span>
-        </div>
+        </a>
         <div className="nav-links">
           <a href="#assessment">Seviye Tespiti</a>
           <a href="#modules">Modüller</a>
@@ -229,7 +229,7 @@ const LandingPage = () => {
       <footer className="footer">
         <div className="footer-content">
           <div className="brand">
-            <Sparkles size={20} /> myLanguage
+            <img src="/logo.png" alt="myLanguage Logo" style={{ width: '20px', height: '20px', borderRadius: '4px' }} /> myLanguage
           </div>
           <p>© 2026 Tüm hakları saklıdır.</p>
         </div>
