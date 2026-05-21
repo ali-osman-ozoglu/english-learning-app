@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Sparkles, Brain, Mic, Download, ShieldCheck, FileText, Lock } from 'lucide-react';
+import { Sparkles, Brain, Mic, Download, ShieldCheck, FileText, Lock, Apple, Play, ShoppingBag } from 'lucide-react';
 import './LandingPage.css';
 
 const LandingPage = () => {
@@ -62,14 +62,14 @@ const LandingPage = () => {
         
         <motion.div 
           className="hero-image-container"
-          style={{ display: 'flex', gap: '20px', position: 'relative' }}
+          style={{ position: 'relative', width: '100%', maxWidth: '450px', height: '600px', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 auto' }}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          <div className="glow-effect" style={{ width: '150%', height: '150%', top: '-25%', left: '-25%' }}></div>
-          <img src="/screenshots/1.jpg" alt="Hoş Geldiniz" className="hero-mockup" style={{ zIndex: 2 }} />
-          <img src="/screenshots/2.jpg" alt="Dil Seçimi" className="hero-mockup" style={{ zIndex: 1, transform: 'scale(0.9) translateX(-40%)', opacity: 0.8 }} />
+          <div className="glow-effect" style={{ width: '100%', height: '100%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}></div>
+          <img src="/screenshots/1.jpg" alt="Hoş Geldiniz" className="hero-mockup" style={{ zIndex: 2, position: 'absolute', left: '10%', width: '260px' }} />
+          <img src="/screenshots/2.jpg" alt="Dil Seçimi" className="hero-mockup" style={{ zIndex: 1, position: 'absolute', right: '0', top: '60px', width: '230px', opacity: 0.6 }} />
         </motion.div>
       </section>
 
@@ -210,19 +210,26 @@ const LandingPage = () => {
         >
           <h2>Hazır Mısınız?</h2>
           <p>İngilizce öğrenme serüveninize bugün başlayın. Kurulum tamamen ücretsizdir.</p>
-          <div className="store-buttons">
-            <a href="#" className="store-btn android">
-              <div className="store-icon">🤖</div>
-              <div className="store-text">
-                <span className="small">İndir</span>
-                <span className="big">Android APK</span>
+          <div className="store-buttons" style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a href="#" className="store-btn" style={{ background: '#000', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '40px', padding: '8px 24px' }}>
+              <Apple size={36} fill="white" />
+              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', marginLeft: '5px' }}>
+                <span style={{ fontSize: '11px', color: '#ccc', letterSpacing: '0.5px' }}>İndirebilirsin</span>
+                <span style={{ fontSize: '20px', fontWeight: '600', letterSpacing: '-0.5px' }}>App Store'dan</span>
               </div>
             </a>
-            <a href="#" className="store-btn ios disabled">
-              <div className="store-icon">🍎</div>
-              <div className="store-text">
-                <span className="small">Çok Yakında</span>
-                <span className="big">App Store</span>
+            <a href="#" className="store-btn" style={{ background: '#000', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '40px', padding: '8px 24px' }}>
+              <Play size={36} color="#3ddc84" fill="#3ddc84" />
+              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', marginLeft: '5px' }}>
+                <span style={{ fontSize: '11px', color: '#ccc', letterSpacing: '0.5px' }}>İndirebilirsin</span>
+                <span style={{ fontSize: '20px', fontWeight: '600', letterSpacing: '-0.5px' }}>Google Play'den</span>
+              </div>
+            </a>
+            <a href="#" className="store-btn" style={{ background: '#000', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '40px', padding: '8px 24px' }}>
+              <ShoppingBag size={36} color="#ef4444" />
+              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', marginLeft: '5px' }}>
+                <span style={{ fontSize: '11px', color: '#ccc', letterSpacing: '0.5px' }}>İndirebilirsin</span>
+                <span style={{ fontSize: '20px', fontWeight: '600', letterSpacing: '-0.5px' }}>AppGallery'den</span>
               </div>
             </a>
           </div>
