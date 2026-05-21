@@ -330,9 +330,12 @@ router.post('/evaluate-writing', authMiddleware, async (req, res) => {
     let feedback = "";
     
     if (mode === 'dictation') {
-        // Levenshtein Uzaklığı (Karakter bazlı hassas benzerlik)
-        const distance = levenshtein.get(originalText.toLowerCase().trim(), writtenText.toLowerCase().trim());
-        const maxLength = Math.max(originalText.length, writtenText.length);
+        // Levenshtein Uzaklığı (Karakter bazlı hassas benzerlik, noktalama işaretlerini ve büyük/küçük harfi yok sayar)
+        const cleanOriginal = originalText.toLowerCase().replace(/[.,!?;:'"()]/g, '').replace(/\s+/g, ' ').trim();
+        const cleanWritten = writtenText.toLowerCase().replace(/[.,!?;:'"()]/g, '').replace(/\s+/g, ' ').trim();
+        
+        const distance = levenshtein.get(cleanOriginal, cleanWritten);
+        const maxLength = Math.max(cleanOriginal.length, cleanWritten.length);
         score = maxLength === 0 ? 0 : Math.max(0, Math.round(((maxLength - distance) / maxLength) * 100));
         
         if (score >= 90) feedback = "Kusursuza yakın (Yerel Analiz).";

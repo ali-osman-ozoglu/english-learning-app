@@ -64,7 +64,7 @@ export default function ReadingScreen({ navigation }: Props) {
     
     if (isManualStopRef.current) return;
 
-    if (errorCode === 'no-speech' || errorCode === 'network') {
+    if (errorCode === 'no-speech' || errorCode === 'network' || errorCode === 'aborted') {
         setIsRecording(false);
         return;
     }
