@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Sparkles, Brain, Mic, Download, ShieldCheck, FileText, Lock, Apple, Play, ShoppingBag } from 'lucide-react';
+import { Sparkles, Brain, Mic, Download, ShieldCheck, FileText, Lock } from 'lucide-react';
 import './LandingPage.css';
 
 const LandingPage = () => {
@@ -211,26 +211,14 @@ const LandingPage = () => {
           <h2>Hazır Mısınız?</h2>
           <p>İngilizce öğrenme serüveninize bugün başlayın. Kurulum tamamen ücretsizdir.</p>
           <div className="store-buttons" style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="#" className="store-btn" style={{ background: '#000', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '40px', padding: '8px 24px' }}>
-              <Apple size={36} fill="white" />
-              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', marginLeft: '5px' }}>
-                <span style={{ fontSize: '11px', color: '#ccc', letterSpacing: '0.5px' }}>İndirebilirsin</span>
-                <span style={{ fontSize: '20px', fontWeight: '600', letterSpacing: '-0.5px' }}>App Store'dan</span>
-              </div>
+            <a href="#" target="_blank" rel="noopener noreferrer" style={{ transition: 'transform 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+              <img src="https://cdn.dsmcdn.com/sfint/prod/fp/app-store-tr_1758114705536.svg" alt="App Store'dan İndirin" style={{ height: '45px' }} />
             </a>
-            <a href="#" className="store-btn" style={{ background: '#000', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '40px', padding: '8px 24px' }}>
-              <Play size={36} color="#3ddc84" fill="#3ddc84" />
-              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', marginLeft: '5px' }}>
-                <span style={{ fontSize: '11px', color: '#ccc', letterSpacing: '0.5px' }}>İndirebilirsin</span>
-                <span style={{ fontSize: '20px', fontWeight: '600', letterSpacing: '-0.5px' }}>Google Play'den</span>
-              </div>
+            <a href="#" target="_blank" rel="noopener noreferrer" style={{ transition: 'transform 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+              <img src="https://cdn.dsmcdn.com/sfint/prod/fp/tr_1758114718934.svg" alt="Google Play'den İndirin" style={{ height: '45px' }} />
             </a>
-            <a href="#" className="store-btn" style={{ background: '#000', border: '1px solid rgba(255,255,255,0.4)', borderRadius: '40px', padding: '8px 24px' }}>
-              <ShoppingBag size={36} color="#ef4444" />
-              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', marginLeft: '5px' }}>
-                <span style={{ fontSize: '11px', color: '#ccc', letterSpacing: '0.5px' }}>İndirebilirsin</span>
-                <span style={{ fontSize: '20px', fontWeight: '600', letterSpacing: '-0.5px' }}>AppGallery'den</span>
-              </div>
+            <a href="#" target="_blank" rel="noopener noreferrer" style={{ transition: 'transform 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+              <img src="https://cdn.dsmcdn.com/sfint/prod/fp/appgallery-tr_1758114732620.svg" alt="AppGallery'den İndirin" style={{ height: '45px' }} />
             </a>
           </div>
           <p className="note">* Mobil uygulama henüz geliştirme aşamasındadır. Android APK linki yakında eklenecektir.</p>
