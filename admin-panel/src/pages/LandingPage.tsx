@@ -20,18 +20,11 @@ const LandingPage = () => {
   return (
     <div className="landing-container" style={{ overflowX: 'hidden', margin: '-2rem', width: 'calc(100% + 4rem)', minHeight: '100vh' }}>
       {/* Navbar */}
-      <nav className="navbar glass-nav">
-        <a href="#" className="nav-brand" style={{ textDecoration: 'none' }}>
-          <img src="/logo.png" alt="myLanguage Logo" className="brand-icon" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
+      <nav className="navbar glass-nav" style={{ justifyContent: 'center' }}>
+        <a href="#" className="nav-brand" style={{ textDecoration: 'none', fontSize: '2rem' }}>
+          <img src="/logo.png" alt="myLanguage Logo" className="brand-icon" style={{ width: '40px', height: '40px', borderRadius: '8px' }} />
           <span className="brand-name">myLanguage</span>
         </a>
-        <div className="nav-links">
-          <a href="#assessment">Seviye Tespiti</a>
-          <a href="#modules">Modüller</a>
-          <a href="#ai">Sanal Öğretmen</a>
-          <a href="#privacy">Gizlilik</a>
-          <a href="#download" className="nav-cta">Hemen İndir</a>
-        </div>
       </nav>
 
       {/* Hero Section */}
