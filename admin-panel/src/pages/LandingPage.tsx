@@ -114,15 +114,22 @@ const LandingPage = () => {
             <div className="ai-item">
               <Bot className="ai-icon" />
               <div>
-                <h4>Anında Öğretmen Notu</h4>
-                <p>Hatalarınızı sadece puanlamakla kalmaz, size özel motive edici Türkçe öğretmen notlarıyla neden hata yaptığınızı açıklar.</p>
+                <h4>Mikro Hata Tespiti ve Detaylı Notlar</h4>
+                <p>Sadece puan vermekle kalmaz. Telaffuzda zorlandığınız 'w' ve 'n' sesleri gibi spesifik detayları veya yazımdaki küçük/büyük harf hatalarınızı bile fark edip Türkçe açıklar.</p>
               </div>
             </div>
             <div className="ai-item">
               <ShieldCheck className="ai-icon" />
               <div>
-                <h4>Gramer ve Anlam Analizi</h4>
-                <p>Kelimesi kelimesine ezberci bir çeviri yerine, kurduğunuz cümlenin anlamsal doğruluğunu NLP ve AI ile anlar.</p>
+                <h4>Kesintisiz Öğrenim (Yerel NLP)</h4>
+                <p>Yapay zeka analiz kotanız dolsa bile durmak yok! Uygulama içine entegre edilmiş Yerel NLP (Doğal Dil İşleme) motoru ile çevirileriniz anında değerlendirilmeye devam eder.</p>
+              </div>
+            </div>
+            <div className="ai-item">
+              <Sparkles className="ai-icon" />
+              <div>
+                <h4>Kayıt Yok, Tamamen Anonim</h4>
+                <p>Kişisel veri veya e-posta istemiyoruz! İlerlemeniz cihazınızda anonim tutulur. Cihaz değiştirdiğinizde ise sadece 6 haneli güvenli bir transfer kodu ile tüm verilerinizi yeni telefonunuza aktarabilirsiniz.</p>
               </div>
             </div>
           </div>
