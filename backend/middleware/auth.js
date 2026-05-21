@@ -13,14 +13,16 @@ const authMiddleware = async (req, res, next) => {
         // Admin rotaları veya kayıt rotası için istisnalar eklenebilir
         // Ancak bu middleware sadece korumalı rotalara eklenecektir.
 
-        if (!token || !uuid) {
+        if (!token) {
             return res.status(401).json({ 
                 success: false, 
-                message: 'Yetkisiz erişim: UUID veya Güvenlik Tokanı eksik.' 
+                message: 'Yetkisiz erişim: Güvenlik Tokanı eksik.' 
             });
         }
 
-        const user = await User.findOne({ uuid, authToken: token });
+        // Token ile kullanıcıyı bul, uuid varsa onu da kontrol et
+        const query = uuid ? { uuid, authToken: token } : { authToken: token };
+        const user = await User.findOne(query);
 
         if (!user) {
             return res.status(401).json({ 
