@@ -59,7 +59,7 @@ const LandingPage = () => {
         >
           <div className="glow-effect"></div>
           {/* Main App Screenshot */}
-          <img src="/screenshots/screen1.png" alt="App Interface" className="hero-mockup" />
+          <img src="/screenshots/1.jpg" alt="App Interface" className="hero-mockup" />
         </motion.div>
       </section>
 
@@ -81,21 +81,21 @@ const LandingPage = () => {
             <div className="feature-icon bg-blue"><Brain size={24} /></div>
             <h3>Akıllı Kelime Haznesi</h3>
             <p>Seviyenize uygun kelimeleri, unutma eğrinize göre tam zamanında tekrar ederek kalıcı hafızanıza alın.</p>
-            <img src="/screenshots/screen2.png" alt="Vocabulary Module" className="feature-screenshot" />
+            <img src="/screenshots/2.jpg" alt="Vocabulary Module" className="feature-screenshot" />
           </motion.div>
 
           <motion.div className="feature-card" whileHover={{ y: -10 }}>
             <div className="feature-icon bg-green"><Mic size={24} /></div>
             <h3>Telaffuz Analizi</h3>
             <p>Sesli okuma pratiği yapın. Yapay zeka sesinizi dinlesin, hatalı telaffuz ettiğiniz kelimeleri anında işaretlesin.</p>
-            <img src="/screenshots/screen3.png" alt="Pronunciation Module" className="feature-screenshot" />
+            <img src="/screenshots/3.jpg" alt="Pronunciation Module" className="feature-screenshot" />
           </motion.div>
 
           <motion.div className="feature-card" whileHover={{ y: -10 }}>
             <div className="feature-icon bg-purple"><Keyboard size={24} /></div>
             <h3>Çeviri ve Dikte</h3>
             <p>Duyduğunuzu yazın veya Türkçe cümleleri çevirin. Gramer ve anlam bütünlüğü anında değerlendirilsin.</p>
-            <img src="/screenshots/screen4.png" alt="Writing Module" className="feature-screenshot" />
+            <img src="/screenshots/4.jpg" alt="Writing Module" className="feature-screenshot" />
           </motion.div>
         </div>
       </section>
@@ -137,7 +137,7 @@ const LandingPage = () => {
         <div className="ai-image-wrapper">
           <div className="ai-glow"></div>
           {/* Reusing screen3 as it has AI feedback */}
-          <img src="/screenshots/screen3.png" alt="AI Feedback" className="ai-mockup" />
+          <img src="/screenshots/3.jpg" alt="AI Feedback" className="ai-mockup" />
         </div>
       </section>
 
