@@ -250,12 +250,14 @@ router.post('/evaluate-reading', authMiddleware, async (req, res) => {
     Kullanıcının Okuduğu: "${spokenText}"
 
     1. Doğruluk seviyesini (0 ile 100 arası bir tamsayı) belirle.
-    2. Kullanıcının yanlış veya eksik okuduğu, telaffuz edemediği kelimelerin bir listesini ver. Eğer kelimenin kökü doğru ancak eki yanlışsa (goes yerine go okuduysa) bunu da yanlış say.
+    2. Kullanıcının yanlış veya eksik okuduğu, telaffuz edemediği kelimelerin bir listesini ver.
+    3. Kullanıcıya telaffuzuyla ilgili kısa, motive edici ve hangi kelimelerde/seslerde zorlandığını açıklayan Türkçe bir öğretmen notu yaz (feedback).
 
     Sadece aşağıdaki JSON formatında cevap ver:
     {
       "accuracyScore": 85,
-      "wrongWords": ["word1", "word2"]
+      "wrongWords": ["word1", "word2"],
+      "feedback": "Harika okudun ancak 'word1' kelimesini telaffuz ederken biraz zorlanmışsın gibi görünüyor..."
     }
     `;
 
@@ -277,9 +279,14 @@ router.post('/evaluate-reading', authMiddleware, async (req, res) => {
     const wrongWords = origWords.filter(w => !spokenWords.includes(w));
     const accuracyScore = Math.max(0, Math.round(((origWords.length - wrongWords.length) / origWords.length) * 100));
 
+    let feedback = "";
+    if (accuracyScore >= 90) feedback = "Kusursuza yakın bir okuma, tebrikler! (Yerel Analiz)";
+    else if (accuracyScore >= 70) feedback = "Ufak telaffuz hataların var, işaretli kelimelere dikkat ederek tekrar deneyebilirsin. (Yerel Analiz)";
+    else feedback = "Okumanı geliştirmek için daha fazla pratik yapmalısın. Pes etmek yok! (Yerel Analiz)";
+
     res.json({ 
         success: true, 
-        evaluation: { accuracyScore, wrongWords, isFallback: true } 
+        evaluation: { accuracyScore, wrongWords, feedback, isFallback: true } 
     });
 
   } catch (error) {

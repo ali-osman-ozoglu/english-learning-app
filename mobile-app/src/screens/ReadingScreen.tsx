@@ -23,7 +23,7 @@ export default function ReadingScreen({ navigation }: Props) {
   const [spokenText, setSpokenText] = useState('');
   
   const [evaluating, setEvaluating] = useState(false);
-  const [evaluation, setEvaluation] = useState<{ accuracyScore: number, wrongWords: string[] } | null>(null);
+  const [evaluation, setEvaluation] = useState<{ accuracyScore: number, wrongWords: string[], feedback?: string } | null>(null);
   const isManualStopRef = useRef(false);
   const committedTextRef = useRef('');
   const retryCountRef = useRef(0);
@@ -256,6 +256,9 @@ export default function ReadingScreen({ navigation }: Props) {
             {evaluation && (
                 <View style={styles.scoreContainer}>
                     <Text style={styles.scoreText}>Doğruluk: %{evaluation.accuracyScore}</Text>
+                    {evaluation.feedback && (
+                        <Text style={styles.feedbackText}>{evaluation.feedback}</Text>
+                    )}
                 </View>
             )}
         </View>
@@ -309,8 +312,9 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#1e293b', padding: 24, borderRadius: 20, borderWidth: 1, borderColor: '#334155', minHeight: 200, justifyContent: 'center' },
   levelBadge: { color: '#94a3b8', fontSize: 14, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12, textAlign: 'center' },
   englishText: { color: '#f8fafc', fontSize: 28, fontWeight: '800', lineHeight: 40, textAlign: 'center' },
-  scoreContainer: { marginTop: 20, backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: 10, borderRadius: 10, alignSelf: 'center' },
-  scoreText: { color: '#22c55e', fontWeight: 'bold', fontSize: 16 },
+  scoreContainer: { marginTop: 20, backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: 15, borderRadius: 12, alignSelf: 'center', width: '100%', alignItems: 'center' },
+  scoreText: { color: '#22c55e', fontWeight: 'bold', fontSize: 18, marginBottom: 8 },
+  feedbackText: { color: '#cbd5e1', fontSize: 14, textAlign: 'center', fontStyle: 'italic', lineHeight: 20 },
   spokenContainer: { marginTop: 30, padding: 20, backgroundColor: 'rgba(15, 23, 42, 0.5)', borderRadius: 12 },
   spokenLabel: { color: '#94a3b8', fontSize: 14, marginBottom: 8 },
   spokenText: { color: '#cbd5e1', fontSize: 16, fontStyle: 'italic' },
