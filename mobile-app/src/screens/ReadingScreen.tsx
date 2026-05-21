@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice';
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { MaterialIcons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useUserStore } from '../store/useUserStore';
@@ -30,26 +30,48 @@ export default function ReadingScreen({ navigation }: Props) {
 
   useEffect(() => {
     loadTexts();
-    
-    Voice.onSpeechStart = () => { console.log('Speech Started'); setIsRecording(true); };
-    Voice.onSpeechEnd = () => {
-        console.log('Speech Ended');
-        setIsRecording(false); // Kayıt durduğunu UI'a bildir
-    };
-    Voice.onSpeechResults = onSpeechResults;
-    Voice.onSpeechPartialResults = (e: SpeechResultsEvent) => {
-      if (e.value && e.value.length > 0) {
-        const currentPart = e.value[0];
-        const fullText = (committedTextRef.current + ' ' + currentPart).trim();
-        setSpokenText(fullText);
-      }
-    };
-    Voice.onSpeechError = onSpeechError;
-    
     return () => {
-      Voice.destroy().then(Voice.removeAllListeners);
+      ExpoSpeechRecognitionModule.abort();
     };
   }, []);
+
+  useSpeechRecognitionEvent('start', () => {
+    console.log('Speech Started');
+    setIsRecording(true);
+  });
+
+  useSpeechRecognitionEvent('end', () => {
+    console.log('Speech Ended');
+    setIsRecording(false);
+  });
+
+  useSpeechRecognitionEvent('result', (e) => {
+    if (e.results && e.results.length > 0) {
+      const resultPart = e.results[0].transcript;
+      if (e.isFinal) {
+        committedTextRef.current = (committedTextRef.current + ' ' + resultPart).trim();
+        setSpokenText(committedTextRef.current);
+      } else {
+        const fullText = (committedTextRef.current + ' ' + resultPart).trim();
+        setSpokenText(fullText);
+      }
+    }
+  });
+
+  useSpeechRecognitionEvent('error', (e) => {
+    const errorCode = e.error;
+    console.log('Speech Error (Code ' + errorCode + '):', e.message);
+    
+    if (isManualStopRef.current) return;
+
+    if (errorCode === 'no-speech' || errorCode === 'network') {
+        setIsRecording(false);
+        return;
+    }
+
+    setIsRecording(false);
+    Alert.alert('Mikrofon Hatası (' + errorCode + ')', 'Sesiniz anlaşılamadı veya teknik bir sorun oluştu.');
+  });
 
   const loadTexts = async () => {
     if (!user?.uuid) return;
@@ -76,41 +98,15 @@ export default function ReadingScreen({ navigation }: Props) {
     }
   };
 
-  const onSpeechResults = (e: SpeechResultsEvent) => {
-    if (e.value && e.value.length > 0) {
-      const finalPart = e.value[0];
-      committedTextRef.current = (committedTextRef.current + ' ' + finalPart).trim();
-      setSpokenText(committedTextRef.current);
-    }
-  };
-
-  const onSpeechError = (e: SpeechErrorEvent) => {
-    const errorCode = e.error?.code;
-    console.log('Speech Error (Code ' + errorCode + '):', e.error);
-    
-    // Eğer kullanıcı kendisi durdurduysa hiçbir şey yapma
-    if (isManualStopRef.current) return;
-
-    // 7: No match (sessizlik), 11: Didn't understand, 6: Speech timeout, 8: Busy
-    if (errorCode === '7' || errorCode === '11' || errorCode === '6' || errorCode === '8' || errorCode === '5') {
-        setIsRecording(false);
-        return;
-    }
-
-    setIsRecording(false);
-    Alert.alert('Mikrofon Hatası (' + errorCode + ')', 'Sesiniz anlaşılamadı veya teknik bir sorun oluştu.');
-  };
-
   const startRecording = async () => {
     try {
-      retryCountRef.current = 0; // Reset retry count
-      // Önceki bir session varsa temizle
-      await Voice.stop().catch(() => {});
+      retryCountRef.current = 0;
+      await ExpoSpeechRecognitionModule.stop();
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      const isAvailable = await Voice.isAvailable();
-      if (!isAvailable) {
-        Alert.alert('Hata', 'Ses tanıma modülü bu cihazda kullanılamıyor.');
+      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!granted) {
+        Alert.alert('Hata', 'Mikrofon veya ses tanıma izni reddedildi.');
         return;
       }
 
@@ -118,8 +114,7 @@ export default function ReadingScreen({ navigation }: Props) {
       setEvaluation(null);
       isManualStopRef.current = false;
       committedTextRef.current = '';
-      await Voice.start('en-US', { EXTRA_PARTIAL_RESULTS: true });
-      setIsRecording(true);
+      ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: true });
     } catch (e: any) {
       console.log('Start Error:', e);
       setIsRecording(false);
@@ -129,13 +124,7 @@ export default function ReadingScreen({ navigation }: Props) {
   const continueRecording = async () => {
     try {
       isManualStopRef.current = false;
-      await Voice.start('en-US', { 
-        EXTRA_PARTIAL_RESULTS: true,
-        EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS: 10000,
-        EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 10000,
-        EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 10000,
-      });
-      setIsRecording(true);
+      ExpoSpeechRecognitionModule.start({ lang: 'en-US', interimResults: true });
     } catch (e) {
       console.log('Continue Error:', e);
       setIsRecording(false);
@@ -145,8 +134,7 @@ export default function ReadingScreen({ navigation }: Props) {
   const stopRecording = async () => {
     try {
         isManualStopRef.current = true;
-        await Voice.stop();
-        setIsRecording(false);
+        ExpoSpeechRecognitionModule.stop();
     } catch (e) {
         console.log('Stop Recording Error:', e);
         setIsRecording(false);
@@ -155,7 +143,7 @@ export default function ReadingScreen({ navigation }: Props) {
 
   const resetRecording = async () => {
     try {
-      await Voice.destroy().catch(() => {});
+      ExpoSpeechRecognitionModule.abort();
     } catch (e) {}
     setSpokenText('');
     setEvaluation(null);

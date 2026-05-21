@@ -38,12 +38,13 @@
     "plugins": [
       "expo-secure-store",
       [
-        "@react-native-voice/voice",
+        "expo-speech-recognition",
         {
           "microphonePermission": "Ders sırasında okumanızı analiz etmek için mikrofon erişimi gerekiyor.",
           "speechRecognitionPermission": "Sesinizi yazıya dökebilmek için konuşma tanıma izni gerekiyor."
         }
-      ]
+      ],
+      "expo-speech-recognition"
     ],
     "extra": {
       "eas": {
