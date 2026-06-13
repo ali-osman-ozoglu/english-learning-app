@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.mobileapp",
+      "bundleIdentifier": "com.mylanguage.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -30,7 +30,7 @@
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.mobileapp"
+      "package": "com.mylanguage.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -44,7 +44,8 @@
           "speechRecognitionPermission": "Sesinizi yazıya dökebilmek için konuşma tanıma izni gerekiyor."
         }
       ],
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      "./plugins/withRemoveGoogleSpeechQueries.js"
     ],
     "extra": {
       "eas": {
